@@ -1,0 +1,376 @@
+name: CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v3
+        # No `version:` — action-setup reads pnpm version from
+        # package.json#packageManager. Pinning to "latest" started
+        # grabbing pnpm 11 (needs Node 22.13+) on 2026-05-07 while we
+        # pin Node 20, breaking every CI run; using packageManager keeps
+        # CI in lockstep with the devcontainer.
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: gitleaks
+        run: |
+          # GITLEAKS_VERSION source-of-truth moved from devcontainer.json
+          # (JSON, quoted) to compose.yml (YAML, unquoted) when Option 3
+          # compose isolation shipped (lalista PR 34, 2026-04-28). The sed
+          # strips both the `KEY: ` prefix and any quoting / whitespace so
+          # this works regardless of the YAML quoting style.
+          GITLEAKS_VERSION=$(grep 'GITLEAKS_VERSION:' .devcontainer/compose.yml | head -1 | sed 's/.*: //;s/[" ]//g')
+          if [ -z "$GITLEAKS_VERSION" ]; then echo "ERROR: GITLEAKS_VERSION not found in .devcontainer/compose.yml"; exit 1; fi
+          wget -q "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -O /tmp/gitleaks.tar.gz
+          tar xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          /tmp/gitleaks detect --source . --redact --log-opts="${{ github.event.pull_request.base.sha || 'HEAD~1' }}..HEAD"
+
+      - run: pnpm turbo run lint typecheck test:unit build
+
+    env:
+      # Post-security-posture-cleanup: SUPABASE_URL / SUPABASE_ANON_KEY /
+      # NEXT_PUBLIC_POSTHOG_KEY are GH Variables (public values):
+      #   SUPABASE_URL = http://127.0.0.1:54321 (local stack — fast-job doesn't
+      #     dial; the build step embeds it into the bundle but unit tests mock
+      #     network calls).
+      #   SUPABASE_ANON_KEY = published local-stack default JWT.
+      #   NEXT_PUBLIC_POSTHOG_KEY = public by NEXT_PUBLIC_* convention.
+      # See CLAUDE.md § Gotchas for the GH-vs-Vercel surface split.
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+  # Skip-on-docs-only filter — classifies the PR diff and emits
+  # `runtime: 'true'/'false'` so the slow-job can skip on docs-only PRs.
+  # Job-level `paths-ignore:` is invalid YAML (actionlint v1.7.7 rejects
+  # `paths-ignore` outside of workflow triggers), and `paths-ignore:` at
+  # the workflow level would skip ALL jobs (including fast-job, which
+  # must stay required). Inline-bash classify keeps the dependency
+  # surface zero. Empty diff → runtime=true (safer fallback). See
+  # /devshop/kit/docs/guide/conventions.md § Slow-Job Lifecycle §
+  # Skip-on-docs-only filter for the full rationale (D1/D2/D6) and the
+  # branch-protection `skipped`-as-success contract.
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      runtime: ${{ steps.classify.outputs.runtime }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # required for `git diff base.sha...HEAD` (default depth-1 clone errors)
+      - id: classify
+        name: Classify diff (docs-only → runtime=false)
+        run: |
+          set -euo pipefail
+          # Three-dot diff = merge-base diff (the changes the PR introduces).
+          # Two-dot would diff against base's current tip and pick up unrelated commits.
+          changed_files=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD" || true)
+          # Empty diff → runtime=true (safer default — run slow-job rather than silently skip).
+          if [ -z "$changed_files" ]; then
+            echo "Empty diff; defaulting runtime=true"
+            echo "runtime=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Patterns use `*.md` (not `**/*.md`) because bash `case` is pattern
+          # matching, not pathname expansion: inside `case` the `*` wildcard
+          # ALREADY matches `/`, so `*.md` covers both `CLAUDE.md` and
+          # `apps/web/README.md`. `shopt -s globstar` only affects globbing
+          # for filename expansion — it does NOT alter `case` semantics, so
+          # `**/*.md` in `case` behaves like `*/*.md` and fails to match
+          # root-level markdown (the regression that ran the slow-job on a
+          # CLAUDE.md-only PR — see #63, 2026-05-12). Do NOT "fix" this back
+          # to `**/*.md`.
+          runtime=false
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            case "$path" in
+              *.md) ;;
+              specs/**) ;;
+              PLAN.md) ;;
+              BUILD-LOG.md) ;;
+              TODOS.md) ;;
+              .gstack/**) ;;
+              .devshop/**) ;;
+              *)
+                runtime=true
+                break
+                ;;
+            esac
+          done <<< "$changed_files"
+          echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
+
+  # Slow job — runs only on PRs to main, after fast passes. Spins up a real
+  # Supabase stack inside the runner (Docker is native in GH-Actions; DiD is
+  # NOT used), seeds the DB, deploys the add-item edge function locally, then
+  # runs integration tests + Playwright E2E + migration-drift + rollback-SQL
+  # EXPLAIN checks. Expected wall time: ~6–8 min warm, ~10–12 min cold.
+  slow:
+    if: github.event_name == 'pull_request' && needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    needs: [fast, changes]
+    # 45-min budget (bumped from 30 in PR 12 / my-stores): pre-Playwright
+    # setup eats ~14 min (Playwright system deps install ~10m + Supabase
+    # start ~2m + web build ~30s) leaving ~16 min for 76 tests under
+    # workers=1 — right at the cliff. Bumped to 45 so the 10 new my-stores
+    # tests fit without forcing workers=2 (which surfaces parallelism
+    # flakiness — see CLAUDE.md or PR 12 BUILD-LOG for the diagnostic).
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v3
+        # No `version:` — action-setup reads pnpm version from
+        # package.json#packageManager. Pinning to "latest" started
+        # grabbing pnpm 11 (needs Node 22.13+) on 2026-05-07 while we
+        # pin Node 20, breaking every CI run; using packageManager keeps
+        # CI in lockstep with the devcontainer.
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      # Cache 1 of 3: pnpm store (speeds up install on repeat PR pushes).
+      # Cache 2 of 3: Turborepo outputs (reuses unit-test + typecheck hashes).
+      - name: Cache turbo outputs
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}-
+            ${{ runner.os }}-turbo-
+
+      # Cache 3 of 3: Playwright browsers. Key hashes the workspace lockfile
+      # so a Playwright version bump invalidates the cache cleanly.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright system deps (always)
+        # System libraries (libwoff2dec, libgstreamer, etc.) live in /usr/lib via
+        # apt-get and are NOT preserved by the Playwright browser cache. Different
+        # GitHub-hosted runner images have slightly different baseline packages —
+        # some have libwoff2dec baked in, some don't. Run `install-deps`
+        # unconditionally so WebKit can launch regardless of which runner we land
+        # on. (Idempotent + fast when packages are already present.)
+        run: pnpm --filter @lalista/web exec playwright install-deps chromium webkit
+
+      - name: Install Playwright browsers (chromium + webkit)
+        # Both are needed: `desktop` project uses Chromium, `mobile` project
+        # inherits `devices['iPhone SE']` which defaults to WebKit. Without
+        # WebKit, every mobile test fails with "Executable doesn't exist at
+        # ...webkit-XXXX/pw_run.sh" — the prior install-chromium-only pattern
+        # cost us an entire CI round to surface.
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @lalista/web exec playwright install chromium webkit
+
+      # Supabase CLI + local stack. `setup-cli@v1` picks up the CLI version
+      # pinned in .devcontainer/devcontainer.json so CI + local stay in sync.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase
+        run: |
+          supabase start --ignore-health-check
+          # Export the local stack's keys + URL into GITHUB_ENV so downstream
+          # steps can consume them without parsing logs in every step.
+          # `supabase status -o env` emits `KEY="value"` lines; GitHub Actions'
+          # $GITHUB_ENV parser preserves the literal double quotes, so the
+          # stored env var becomes `"value"` (with quote chars). Next.js
+          # middleware then passes the quoted string to `new URL(...)` which
+          # throws "Invalid supabaseUrl". Strip the surrounding quotes before
+          # export so every downstream consumer gets a plain value.
+          supabase status -o env | sed -E 's/="(.*)"$/=\1/' >> $GITHUB_ENV
+
+      - name: Verify edge runtime healthy (retry once on 5xx)
+        # The supabase_edge_runtime_workspace container occasionally fails
+        # health-check on cold-start in GH-Actions runners — `supabase start`
+        # reports the stack ready while the edge runtime is still booting (or
+        # crashed). Without this gate the failure surfaces mid-test as 502
+        # responses from `invokeAddItem` ("Couldn't add. Check your connection"
+        # toast), which makes core-flows / add-new / force-create-race / item-
+        # detail flake on edge-runtime startup, not on test logic. See
+        # TODOS.md § v0 § core-flows-happy-path-ci-investigation, option (a).
+        #
+        # Probe: POST FUNCTIONS_URL/add-item with empty body. The function
+        # auth-checks first and returns 401 — any 4xx confirms the runtime
+        # is alive. 5xx / 000 (timeout) means the runtime hasn't come up.
+        # On unhealthy: stop + restart the stack once, re-export env, retry.
+        # Keeps the slow-job's 502-flake budget at zero.
+        run: |
+          probe_edge_runtime() {
+            curl -sS -o /dev/null -w '%{http_code}' \
+              --max-time 10 \
+              -X POST "$FUNCTIONS_URL/add-item" \
+              -H 'Content-Type: application/json' \
+              -d '{}' 2>/dev/null || echo '000'
+          }
+          code=$(probe_edge_runtime)
+          case "$code" in
+            4*)
+              echo "✓ Edge runtime healthy (probe returned HTTP $code)"
+              ;;
+            *)
+              echo "::warning::Edge runtime probe returned HTTP $code — restarting Supabase stack once"
+              supabase stop || true
+              supabase start --ignore-health-check
+              supabase status -o env | sed -E 's/="(.*)"$/=\1/' >> $GITHUB_ENV
+              # Re-source FUNCTIONS_URL for the second probe in this step
+              # (the `>> $GITHUB_ENV` only affects subsequent steps).
+              FUNCTIONS_URL=$(supabase status -o env | grep '^API_URL=' | sed -E 's/="?(.*)"?$/\1/' | tr -d '"')/functions/v1
+              sleep 3
+              code=$(probe_edge_runtime)
+              case "$code" in
+                4*)
+                  echo "✓ Edge runtime healthy after restart (probe returned HTTP $code)"
+                  ;;
+                *)
+                  echo "::error::Edge runtime still unhealthy after restart (HTTP $code)"
+                  echo "::error::Inspect supabase logs above for the supabase_edge_runtime_workspace container."
+                  exit 1
+                  ;;
+              esac
+              ;;
+          esac
+
+      - name: Mask service-role key
+        # Defense in depth: `supabase status -o env` writes the service-role
+        # key into $GITHUB_ENV; subsequent `echo` calls could leak it in logs.
+        # Add an explicit mask so it never appears in step output even if a
+        # future step echoes it.
+        run: |
+          if [ -n "${SERVICE_ROLE_KEY:-}" ]; then
+            echo "::add-mask::$SERVICE_ROLE_KEY"
+          fi
+          if [ -n "${ANON_KEY:-}" ]; then
+            echo "::add-mask::$ANON_KEY"
+          fi
+
+      - name: Verify SERVICE_ROLE_KEY is local-stack default (defense-in-depth)
+        # Catches a misconfiguration where SERVICE_ROLE_KEY in CI ever resolves
+        # to the prod service-role JWT. Decode the JWT payload (segment 2) and
+        # assert the issuer is `supabase-demo` (the published local-stack
+        # default) + role is `service_role`. Under normal operation
+        # `supabase status -o env` populates this from the local stack the
+        # runner just spun up, so the check always passes; what it catches is
+        # a future drift (someone wires `${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}`
+        # into the env, OR the workflow gets edited in a way that pulls in
+        # the prod key). Aborts BEFORE any step that could expose the key
+        # via logs or inadvertent network calls.
+        run: |
+          if [ -z "${SERVICE_ROLE_KEY:-}" ]; then
+            echo "::error::SERVICE_ROLE_KEY not set — supabase status probably failed"
+            exit 1
+          fi
+          payload=$(echo "$SERVICE_ROLE_KEY" | cut -d'.' -f2)
+          # Pad base64url to a multiple of 4 chars before decode.
+          pad=$(( (4 - ${#payload} % 4) % 4 ))
+          padded="$payload$(printf '=%.0s' $(seq 1 $pad))"
+          decoded=$(echo "$padded" | tr '_-' '/+' | base64 -d 2>/dev/null || true)
+          iss=$(echo "$decoded" | jq -r '.iss // empty')
+          role=$(echo "$decoded" | jq -r '.role // empty')
+          if [ "$iss" != "supabase-demo" ] || [ "$role" != "service_role" ]; then
+            echo "::error::SERVICE_ROLE_KEY is NOT the local-stack default."
+            echo "::error::Decoded iss='$iss' role='$role' (expected 'supabase-demo' + 'service_role')."
+            echo "::error::Aborting before this could leak prod admin credentials."
+            exit 1
+          fi
+          echo "✓ SERVICE_ROLE_KEY verified as local-stack default (iss=$iss role=$role)"
+
+      - name: Load seed fixtures
+        run: |
+          # `supabase db reset` already applies migrations + seed.sql; this
+          # step is a no-op safeguard if the reset was skipped (e.g. because
+          # supabase start retained a warm volume between cache resumes).
+          supabase db reset --no-backup || true
+
+      # No explicit `supabase functions deploy` step — `supabase start`
+      # with `[edge_runtime] enabled = true` in `supabase/config.toml`
+      # auto-serves every subdirectory of `supabase/functions/` on the
+      # local stack at `${FUNCTIONS_URL}/<name>` (per `per_worker` policy,
+      # with hot reload on file change). A `functions deploy` call without
+      # a `--project-ref` does NOT target local — it tries to push to the
+      # cloud and fails with "Access token not provided" (first slow-job
+      # run surfaced this). The edge-function code already calls
+      # `supabase.auth.getUser()` internally so JWT validation is covered
+      # regardless of edge-runtime `verify_jwt` configuration.
+
+      - name: Run integration tests (Vitest)
+        env:
+          CI_SLOW_JOB: '1'
+          VITEST_INTEGRATION: '1'
+          SUPABASE_URL: ${{ env.API_URL }}
+          SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
+          # Re-export ANTHROPIC_API_KEY_QA GH Secret as ANTHROPIC_API_KEY for the
+          # local edge-function runtime (Deno.env.get('ANTHROPIC_API_KEY') in
+          # supabase/functions/add-item/index.ts). ANTHROPIC_API_KEY_PROD MUST NOT
+          # be wired here — CI integration tests run against the local Supabase
+          # stack and should never burn prod billing or pollute prod rate limits.
+          # See CLAUDE.md § Anthropic API key split.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_QA }}
+        run: pnpm test:integration
+
+      - name: Type drift check
+        run: bash scripts/ci-type-drift.sh
+
+      - name: Rollback SQL EXPLAIN check
+        run: bash scripts/ci-rollback-explain.sh
+
+      - name: Build web app (for Playwright)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+        run: pnpm --filter @lalista/web build
+
+      - name: Run Playwright E2E (mobile + desktop)
+        env:
+          CI: '1'
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          SUPABASE_URL: ${{ env.API_URL }}
+          SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
+        run: |
+          pnpm --filter @lalista/web exec playwright test \
+            --project=mobile \
+            --project=desktop
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 7

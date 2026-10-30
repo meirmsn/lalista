@@ -1,0 +1,33 @@
+# Project-side override for kit/scripts/commit-hooks/check-test-coverage-project.sh.
+# One repo-relative path per line. `#` comments + blank lines are stripped.
+# See guide/conventions.md § Test Presence for the convention; CLAUDE.md
+# § Testing § E2E-per-surface invariant for lalista's project-wide rule.
+#
+# Each entry MUST cite the covering test (transitive coverage) per CLAUDE.md §
+# Testing — "either (a) a dedicated E2E spec exercises it through the UI, OR
+# (b) the wrapper is transitively covered by an existing spec — cite the
+# covering spec." If the cited cover is removed, the exempt entry must be
+# revisited.
+
+# Generated Supabase database types — no logic to test; correctness is
+# guarded by scripts/ci-type-drift.sh in slow-job CI.
+packages/core/src/supabase.types.ts
+
+# Typed error class only (constructor stores fields; no behavior). The
+# AddItemValidationError throw path is exercised by
+# packages/core/src/api/addItem.test.ts and apps/web/lib/reportAddItemValidationError.test.ts.
+packages/core/src/errors.ts
+
+# Zod schema is a data-shape declaration, not behavior. The runtime gate
+# (.safeParse + throw) lives in api/addItem.ts and is covered by
+# packages/core/src/api/addItem.test.ts (success + zod-fail branches).
+packages/core/src/schemas/addItem.ts
+
+# Onboarding form — UI driven through the /onboarding page; covered by
+# apps/web/e2e/auth-edge-cases.spec.ts (signup → onboarding → list flow).
+apps/web/app/(auth)/onboarding/OnboardingForm.tsx
+
+# Remove-entry button — UI driven from /item/[id]; covered by
+# apps/web/e2e/item-detail.spec.ts § Step 4 (navigate back, tap Remove,
+# verify entry removal).
+apps/web/app/item/[id]/RemoveEntryButton.tsx

@@ -1,0 +1,8 @@
+# Paths exempt from the docs-freshness pre-commit hook.
+# Each entry: <path> # <reason>. Reasons must name a specific covering
+# spec/test that a reviewer can verify in 30 seconds.
+#
+# (No active exemptions. Past entries — apps/web/public/lalista-email-logo.png
+#  from chapter 1l — were resolved by adding a Public assets section to
+#  apps/web/README.md instead. Prefer documentation over exemption when
+#  the asset has multiple consumers worth surfacing in one place.)

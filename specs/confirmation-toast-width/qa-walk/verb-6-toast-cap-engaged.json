@@ -1,0 +1,22 @@
+{
+  "verb": 6,
+  "slug": "toast-cap-engaged",
+  "description": "24rem cap on inner pill (long synthetic message via production ConfirmationToast classes)",
+  "url": "http://localhost:3000/list",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "timestamp": "2026-05-08T05:01:10.503Z",
+  "toast": {
+    "text": "(synthetic long message — see verb-6.json)",
+    "width": 384,
+    "height": 79,
+    "minBound": 300,
+    "maxBound": 384,
+    "pass": true
+  },
+  "meta": {
+    "note": "Long-message text injected because seed canonical_item names are short; the inner pill classes are verbatim from ConfirmationToast.tsx:37 so the cap evidence is authentic."
+  }
+}

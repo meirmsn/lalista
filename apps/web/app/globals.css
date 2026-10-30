@@ -1,0 +1,128 @@
+@import 'tailwindcss';
+
+/*
+ * Tailwind v4 auto-detects classes in the project root; workspace packages
+ * need to be declared explicitly via @source. Without this, every token
+ * utility used in @lalista/ui primitives (bg-primary, border-border,
+ * rounded-default, px-md, focus:ring-primary, etc.) is stripped from the
+ * generated CSS and the UI renders unstyled.
+ */
+@source "../../../packages/ui/src/**/*.{ts,tsx}";
+
+/*
+ * Design tokens from @lalista/ui/tokens.ts — CSS custom property layer.
+ * tokens.ts is the source of truth; these mirror its values for Tailwind v4.
+ */
+
+/* Light mode (default) */
+:root {
+  --color-primary: #d4603a;
+  --color-primary-pressed: #a8471e;
+  --color-primary-soft: #fbe8e0;
+  --color-background: #fdfaf6;
+  --color-surface: #ffffff;
+  --color-surface-2: #f5f0e8;
+  --color-border: #e8e0d4;
+  --color-text-primary: #1a1208;
+  --color-text-secondary: #7a6a56;
+  --color-text-tertiary: #a8998a;
+  --color-success: #5a8a5e;
+  --color-success-bg: #ebf4ec;
+  --color-warning: #e8a228;
+  --color-warning-bg: #fdf4e3;
+  --color-error: #c0392b;
+  --color-error-bg: #faeae8;
+  --color-info: #3b82b4;
+  --color-info-bg: #ebf3fa;
+  --duration-micro: 75ms;
+  --duration-short: 200ms;
+  --duration-medium: 300ms;
+  --duration-long: 500ms;
+}
+
+/* Dark mode */
+.dark {
+  --color-primary: #d4603a;
+  --color-primary-pressed: #a8471e;
+  --color-primary-soft: #3a2018;
+  --color-background: #1a1208;
+  --color-surface: #2a2018;
+  --color-surface-2: #38301f;
+  --color-border: #3a3020;
+  --color-text-primary: #f5efe6;
+  --color-text-secondary: #a8998a;
+  --color-text-tertiary: #7a6a56;
+  --color-success: #4e7a52;
+  --color-success-bg: #1e2e1f;
+  --color-warning: #c98e22;
+  --color-warning-bg: #2e2510;
+  --color-error: #a33125;
+  --color-error-bg: #2e1a18;
+  --color-info: #3572a0;
+  --color-info-bg: #1a2530;
+}
+
+@theme inline {
+  /* Colors */
+  --color-primary: var(--color-primary);
+  --color-primary-pressed: var(--color-primary-pressed);
+  --color-primary-soft: var(--color-primary-soft);
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-surface-2: var(--color-surface-2);
+  --color-border: var(--color-border);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-tertiary: var(--color-text-tertiary);
+  --color-success: var(--color-success);
+  --color-success-bg: var(--color-success-bg);
+  --color-warning: var(--color-warning);
+  --color-warning-bg: var(--color-warning-bg);
+  --color-error: var(--color-error);
+  --color-error-bg: var(--color-error-bg);
+  --color-info: var(--color-info);
+  --color-info-bg: var(--color-info-bg);
+
+  /* Fonts — Next.js next/font/google injects CSS variables onto <html>;
+     we reference them with fallbacks so Tailwind utilities resolve even if
+     the Next font loader is bypassed (tests, SSG edge cases). */
+  --font-display: var(--font-lalista-display), Georgia, serif;
+  --font-body: var(--font-lalista-body), system-ui, -apple-system, sans-serif;
+
+  /* Breakpoints */
+  --breakpoint-sm: 375px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1440px;
+  --breakpoint-2xl: 2560px;
+
+  /* Spacing (8px grid) */
+  --spacing-2xs: 2px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+
+  /* Border radius */
+  --radius-micro: 100px;
+  --radius-sm: 10px;
+  --radius-default: 12px;
+  --radius-lg: 20px;
+  --radius-screen: 36px;
+}
+
+/* `html` carries the theme background so route transitions never expose
+   the user-agent white default. Body keeps the rule too for redundancy and
+   so legacy snapshots don't shift. */
+html {
+  background-color: var(--color-background);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+}

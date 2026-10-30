@@ -1,0 +1,20 @@
+{
+  "verb": 4,
+  "slug": "toast-rendered",
+  "description": "ConfirmationToast rendered post-add",
+  "url": "http://localhost:3000/list",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "timestamp": "2026-05-08T05:01:02.612Z",
+  "toast": {
+    "text": "Added Tilapia to Costco",
+    "width": 190.89,
+    "height": 37,
+    "minBound": 100,
+    "maxBound": 384,
+    "pass": true
+  },
+  "meta": null
+}

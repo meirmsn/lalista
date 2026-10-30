@@ -1,0 +1,13 @@
+{
+  "verb": 3,
+  "slug": "add-sheet-open",
+  "description": "AddItemSheet open, \"Tilapia\" typed",
+  "url": "http://localhost:3000/list",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "timestamp": "2026-05-08T05:01:01.584Z",
+  "toast": null,
+  "meta": null
+}

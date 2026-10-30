@@ -1,0 +1,12 @@
+{
+  "peacock.color": "#e7a48e",
+  "peacock.remoteColor": "#D4603A",
+  "workbench.colorCustomizations": {
+    "commandCenter.border": "#e7e7e799",
+    "sash.hoverBorder": "#dd8264",
+    "titleBar.activeBackground": "#d4603a",
+    "titleBar.activeForeground": "#e7e7e7",
+    "titleBar.inactiveBackground": "#d4603a99",
+    "titleBar.inactiveForeground": "#e7e7e799"
+  }
+}
