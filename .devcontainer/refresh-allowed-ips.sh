@@ -23,11 +23,7 @@
 # as root-owned. /etc is overlay-fs where the kernel enforces perms, so
 # the locked file is genuinely tamper-resistant. See init-prod-url.sh.
 #
-# Note: same name as the GitHub Variable `PRODUCTION_URL` consumed by
-# keepalive.yml, but format differs — the GH Variable holds the full URL
-# form (`https://your-app.com`); the .env value is the bare hostname.
-# Document this divergence in your project's CLAUDE.md if it could trip
-# someone copy/pasting between surfaces.
+# Note: the .env value is the bare hostname (`your-app.com`), not a URL.
 #
 # Security model:
 # - Lives at /usr/local/bin/, root-owned, mode 755 (Dockerfile COPY)

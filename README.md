@@ -59,7 +59,7 @@ What the process taught: the first version was a native iOS app in Swift/SwiftUI
 ## Run it
 
 - **Use it:** [lalista.store](https://lalista.store). Sign up with an email address.
-- **Locally:** needs Node 20, pnpm 10, Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli).
+- **Locally:** needs Node 22, pnpm 10, Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli).
   1. `pnpm install`
   2. `supabase start` (applies the migrations and the demo seed)
   3. In `apps/web/.env.local`, set `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the anon key printed by `supabase status`.

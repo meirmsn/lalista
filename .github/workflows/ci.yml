@@ -17,7 +17,7 @@ jobs:
         # No `version:` — action-setup reads pnpm version from
         # package.json#packageManager. Pinning to "latest" started
         # grabbing pnpm 11 (needs Node 22.13+) on 2026-05-07 while we
-        # pin Node 20, breaking every CI run; using packageManager keeps
+        # pinned Node 20, breaking every CI run; using packageManager keeps
         # CI in lockstep with the devcontainer.
 
       - uses: actions/setup-node@v4
@@ -146,7 +146,7 @@ jobs:
         # No `version:` — action-setup reads pnpm version from
         # package.json#packageManager. Pinning to "latest" started
         # grabbing pnpm 11 (needs Node 22.13+) on 2026-05-07 while we
-        # pin Node 20, breaking every CI run; using packageManager keeps
+        # pinned Node 20, breaking every CI run; using packageManager keeps
         # CI in lockstep with the devcontainer.
 
       - uses: actions/setup-node@v4

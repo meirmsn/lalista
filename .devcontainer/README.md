@@ -8,7 +8,7 @@ Source: https://github.com/anthropics/claude-code/tree/main/.devcontainer
 
 ## What's included
 
-- Node.js 20
+- Node.js 22
 - Claude Code CLI
 - ESLint (code quality) + Prettier (formatting) + EditorConfig
 - `git-delta` for syntax-highlighted diffs
@@ -294,7 +294,7 @@ Because `waitFor: postStartCommand` is set in `devcontainer.json`, VS Code won't
 
 ## Dockerfile - Notable Details
 
-- Based on `mcr.microsoft.com/devcontainers/javascript-node:20` (includes Node.js, git, zsh, Oh My Zsh, and the non-root `node` user)
+- Based on `mcr.microsoft.com/devcontainers/javascript-node:22` (includes Node.js, git, zsh, Oh My Zsh, and the non-root `node` user)
 - Installs network tools (`iptables`, `ipset`, `iproute2`) needed by the firewall script
 - Installs `git-delta` for syntax-highlighted git diffs
 - Installs `gh` (GitHub CLI), `chromium` + Playwright shared libs, `supabase` CLI (for migration filesystem operations + TCP-only type-gen), `dcg` (PreToolUse safety hook), `gitleaks` (secret scanning)
@@ -306,7 +306,7 @@ Because `waitFor: postStartCommand` is set in `devcontainer.json`, VS Code won't
 
 ### Base image
 
-Built on `mcr.microsoft.com/devcontainers/javascript-node:20`, Microsoft's official Node.js devcontainer image. It comes with Node.js, npm, git, zsh, Oh My Zsh, and a non-root `node` user pre-configured — no need to install or configure any of these manually.
+Built on `mcr.microsoft.com/devcontainers/javascript-node:22`, Microsoft's official Node.js devcontainer image. It comes with Node.js, npm, git, zsh, Oh My Zsh, and a non-root `node` user pre-configured — no need to install or configure any of these manually.
 
 ### Network tooling
 
