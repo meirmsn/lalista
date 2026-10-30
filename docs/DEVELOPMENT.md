@@ -46,6 +46,8 @@ round-trips via `scripts/ci-rollback-explain.sh`.
 
 ## CI
 
+> This section describes the pipeline as it ran in the private development repo. In this public snapshot GitHub Actions are turned off until secrets are set up, so none of it runs here.
+
 Two jobs, both defined in `.github/workflows/ci.yml`.
 
 ### `fast` — every push

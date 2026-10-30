@@ -10,7 +10,7 @@ Everyone in the household sees the same list, updating live. You type items in E
 
 ## Approach
 
-Built with Claude Code agents, following a spec-first loop I've been developing alongside it (devshop). Each change starts as a written spec with acceptance criteria, and the spec gets an adversarial review. Then the agent builds code, tests and docs together, captures Playwright screenshots as evidence, and opens a PR that CI gates. I chose what to build, approved specs, reviewed PRs and used the app with my household. Human in the loop: @meirmsn. Robot hands: @meirmsn-agent, which packaged this public snapshot; during development the agent committed under my account.
+Built with Claude Code agents, following a spec-first loop I've been developing alongside it (devshop). Each change starts as a written spec with acceptance criteria, and the spec gets an adversarial review. Then the agent builds code, tests and docs together, captures Playwright screenshots as evidence, and opens a PR that CI must pass (in the private development repo; Actions are off in this public snapshot). I chose what to build, approved specs, reviewed PRs and used the app with my household. Human in the loop: @meirmsn. Robot hands: @meirmsn-agent, which packaged this public snapshot; during development the agent committed under my account.
 
 What the process taught: the first version was a native iOS app in Swift/SwiftUI that ran in the simulator, but the agent couldn't check its own work there. I shelved it for the web so the agent could verify every change itself in Playwright. Also, about half of the merged PRs went into the process and the dev environment rather than the product.
 
@@ -30,7 +30,7 @@ What the process taught: the first version was a native iOS app in Swift/SwiftUI
 - The store comes from a SQL function that ranks stores by the household's purchases over the last six months, weighting recent ones more. When one store holds at least 70% of that weighted history, the item is filed silently; otherwise the app asks. Purchase history is written only by "mark bought" (one atomic database call).
 - Households are isolated with Postgres row-level security. Key rules live in the database, not just the app: one household per account for now, and list items only for stores in the household's list.
 - Web over native: the Swift/SwiftUI iOS app with a Siri shortcut is kept in [`ios-archive/`](ios-archive/), and the web app replaced it.
-- Tests: Vitest unit tests, integration tests, and Playwright end-to-end tests at phone and desktop sizes. Every page has an end-to-end test; CI runs them against a local Supabase.
+- Tests: Vitest unit tests, integration tests, and Playwright end-to-end tests at phone and desktop sizes. Every page has an end-to-end test; in development, CI ran them against a local Supabase.
 
 ## Build log
 
