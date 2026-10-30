@@ -4,9 +4,9 @@
 
 <img src="docs/readme/demo.gif" alt="Demo household: typing “mozzarella” into lalista, it asks which mozzarella, then files it under Costco because that's where the household bought it before" width="360">
 
-A shared grocery list for bilingual households that files each item under the store you usually buy it at.
+A grocery list for busy households, meant to take almost no time and keep you fully in control: say one word, and it knows what you mean and gets the cart ready for you to approve.
 
-Everyone in the household sees the same list, updating live. You type items in English, Spanish or a mix. When a word could mean several products, the app asks which one. Once you've marked something bought at a store, it usually goes straight there next time. Invite people with a link and keep your own list of stores. The goal is voice-first: say "we ran out of mozzarella" and have the app work out both the store and the exact product from your history. Today it's a typed web app that infers the store. Voice, a native app and cart set-up are next steps, not features.
+You're cooking for the kids and realize there's no mozzarella. The idea: press a button on your phone, say "mozzarella", done. No unlocking, no wading through notifications, no finding the app and typing a note. lalista should know that in your house "mozzarella" means the shredded one from Costco, file it there, and prepare the online cart so all you do is approve the purchase. Today only the first piece exists: a shared web list you type into, in English or Spanish, that remembers which store you buy each thing at, and it doesn't do that very well yet. Voice, knowing the exact product, and cart set-up are the goal, not features.
 
 ## Approach
 
