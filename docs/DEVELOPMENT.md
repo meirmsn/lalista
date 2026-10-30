@@ -1,6 +1,6 @@
 # Developing lalista
 
-Voice-first bilingual grocery list app.
+Developer notes for lalista, a bilingual grocery list web app (voice-first is the goal; see the [README](../README.md) for status).
 
 ## Documentation
 
