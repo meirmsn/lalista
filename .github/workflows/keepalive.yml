@@ -2,6 +2,8 @@ name: Keepalive
 # Supabase pauses a free project after a week without database activity. A visit to the
 # site doesn't count (the public pages make no database query), so this queries the
 # production database through its REST API once a week, with the public anon key.
+# `stores` is readable by anon (migration 005 grants select); its RLS policy (016) returns
+# no rows without a session, so the answer is 200 with `[]` — still a database query.
 on:
   schedule:
     - cron: '0 9 * * 1' # Every Monday at 9am UTC
