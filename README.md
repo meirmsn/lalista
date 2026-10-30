@@ -1,90 +1,75 @@
 # lalista
 
-Voice-first bilingual grocery list app.
+> **Status: Work in progress** · last touched 2026-06
 
-## Documentation
+<img src="docs/readme/demo.gif" alt="Demo household: typing “mozzarella” into lalista, it asks which mozzarella, then files it under Costco because that's where the household bought it before" width="360">
 
-- [`OVERVIEW.md`](./OVERVIEW.md) — product map: what lalista does, who uses it, core flows, features
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — system map: components, data flow, deployment topology, module map
-- Per-package READMEs: [`apps/web/README.md`](./apps/web/README.md), [`packages/core/README.md`](./packages/core/README.md), [`packages/ui/README.md`](./packages/ui/README.md), [`supabase/functions/README.md`](./supabase/functions/README.md)
-- [`PLAN.md`](./PLAN.md) — what's being built right now · [`BUILD-LOG.md`](./BUILD-LOG.md) — what's shipped · [`PRODUCT-ROADMAP.md`](./PRODUCT-ROADMAP.md) — long-term
+A shared grocery list for bilingual households that files each item under the store you usually buy it at.
 
-## Development
+Everyone in the household sees the same list, updating live. You type items in English, Spanish or a mix. When a word could mean several products, the app asks which one. Once you've marked something bought at a store, it usually goes straight there next time. Invite people with a link and keep your own list of stores. The goal is voice-first: say "we ran out of mozzarella" and have the app work out both the store and the exact product from your history. Today it's a typed web app that infers the store. Voice, a native app and cart set-up are next steps, not features.
 
-1. Open in VS Code and select **Reopen in Container**
-2. Run `claude` in the terminal
+## Approach
 
-### Commands
+Built with Claude Code agents, following a spec-first loop I've been developing alongside it (devshop). Each change starts as a written spec with acceptance criteria, and the spec gets an adversarial review. Then the agent builds code, tests and docs together, captures Playwright screenshots as evidence, and opens a PR that CI gates. I chose what to build, approved specs, reviewed PRs and used the app with my household. Human in the loop: @meirmsn. Robot hands: @meirmsn-agent, which packaged this public snapshot; during development the agent committed under my account.
 
-- `pnpm turbo run test:unit` — fast test loop
-- `pnpm turbo run test` — full test suite
-- `pnpm db:start` — bring up the local Supabase stack (runs in the `supabase-runner` sibling compose container; relays through `pnpm db:reset` / `db:status` / `db:stop` / `db:gen-types`)
-- `pnpm test:integration` — Supabase-backed integration tests (requires the local stack from `pnpm db:start`)
-- `pnpm turbo run build` — production build
-- `pnpm turbo run dev` — dev server
+What the process taught: the first version was a native iOS app in Swift/SwiftUI that ran in the simulator, but the agent couldn't check its own work there. I shelved it for the web so the agent could verify every change itself in Playwright. Also, about half of the merged PRs went into the process and the dev environment rather than the product.
 
-> Without the devcontainer: `pnpm install && pnpm turbo run dev`
+## What it does
 
-### Local URLs (devcontainer)
+- One list per household. When someone adds or buys an item, it shows up on everyone else's screen without a refresh.
+- Type item names in English or Spanish: "leche", "aceitunas", "shredded mozzarella".
+- Learns where you shop. Items you've bought before go under that store automatically; otherwise it asks which store.
+- "Which one?" when a word matches several products, with an "add as new" option when none of them fit.
+- Invite family with a link. Owners can remove members, and an activity log shows who did what.
+- Your own list of stores, including ones we don't list. Installs to your phone's home screen.
 
-After `pnpm db:start` + `pnpm turbo run dev`, these are reachable from your macOS browser:
+## How it works
 
-- Dev server: http://localhost:3000
-- Supabase API gateway: http://127.0.0.1:54321
-- Supabase Studio: http://127.0.0.1:54323/project/default
-- Mailpit (local email inbox): http://127.0.0.1:54324
+- Next.js web app on Vercel, with Supabase for Postgres, auth, realtime updates and an edge function. A Turborepo monorepo with shared `core` (API) and `ui` packages.
+- Adding an item runs one edge function. It fuzzy-matches the text against the item catalog with Postgres trigram similarity. If the text contains common Spanish words, Claude also translates it to English in parallel, and whichever match scores higher wins. Several close matches mean a "Which one?" question.
+- The store comes from a SQL function that ranks stores by the household's purchases over the last six months, weighting recent ones more. When one store holds at least 70% of that weighted history, the item is filed silently; otherwise the app asks. Purchase history is written only by "mark bought" (one atomic database call).
+- Households are isolated with Postgres row-level security. Key rules live in the database, not just the app: one household per account for now, and list items only for stores in the household's list.
+- Web over native: the Swift/SwiftUI iOS app with a Siri shortcut is kept in [`ios-archive/`](ios-archive/), and the web app replaced it.
+- Tests: Vitest unit tests, integration tests, and Playwright end-to-end tests at phone and desktop sizes. Every page has an end-to-end test; CI runs them against a local Supabase.
 
-> Before shipping a DB migration, open Studio's **Advisor** (Database → Advisor). It surfaces RLS / `search_path` / missing-FK-index findings against your local stack — run `pnpm db:reset` first so Studio sees the latest migration's effect (Studio caches advisor state across runs). The hosted Advisor against prod runs separately after deploy.
+## Build log
 
-### Migrations
+- 2026-04-16 — First commit: the Swift/SwiftUI iOS app (built before this history began) and the start of a web version.
+- 2026-04-17 — Web rewrite begins; the iOS app is archived.
+- 2026-04-20 — Sign-in and household set-up.
+- 2026-04-22 — The core loop on the web: list grouped by store, add an item, "Which one?", item detail, mark bought.
+- 2026-04-23 — "Add as new" when nothing in the catalog fits.
+- 2026-05-05 — Reworked sign-up and password reset; moved to lalista.store.
+- 2026-05-06 — Instant visual feedback on taps and slow loads.
+- 2026-05-08 — Fixes for the installed app on iPhone (input zoom, standalone mode).
+- 2026-05-11 — Invite links, member management and an activity log.
+- 2026-05-12 — My Stores (per-household store list, custom stores). Also a fix for a false "sync paused" banner when the phone wakes.
+- 2026-05-13 — Last product change. Since then the only commits have been to the dev environment. Next up: voice capture, a native app, cart set-up.
 
-See `CLAUDE.md § Migration Workflow` for the `supabase migration new` →
-`supabase db reset` → `supabase db push` → `supabase gen types` loop.
-The CI slow-job validates that committed types stay in lockstep via
-`scripts/ci-type-drift.sh` and that every `-- ROLLBACK:` block parses +
-round-trips via `scripts/ci-rollback-explain.sh`.
+## Known limitations
 
-## CI
+- No voice input yet: you type. Your phone keyboard's dictation works, but the app doesn't listen.
+- Type the item, not a sentence: "mozzarella" works, "we ran out of mozzarella" doesn't.
+- It infers the store, not the product. "leche" always asks which milk, and brands aren't remembered.
+- A new household has no history, so every item asks "which store?" until things have been marked bought.
+- Spanish works best for words in the item list. Short words can match unrelated items (e.g. "papas" also offers "Pasta de dientes").
+- Items can't be edited after adding: remove the item and add it again.
+- Web only. One household per account; English and Spanish only. No online ordering or cart set-up.
 
-Two jobs, both defined in `.github/workflows/ci.yml`.
+## Run it
 
-### `fast` — every push
+- **Use it:** [lalista.store](https://lalista.store). Sign up with an email address.
+- **Locally:** needs Node 20, pnpm 10, Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli).
+  1. `pnpm install`
+  2. `supabase start` (applies the migrations and the demo seed)
+  3. In `apps/web/.env.local`, set `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the anon key printed by `supabase status`.
+  4. `pnpm --filter @lalista/web dev`, then sign in at http://localhost:3000 as `alice@test.local` / `Password123!`.
+- Optional: to have Claude translate Spanish phrases, put `ANTHROPIC_API_KEY=…` in `supabase/functions/.env` and restart Supabase. Developer notes: [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
-Runs on every branch push. Blocks PR merge.
+## Feedback
 
-- `pnpm turbo run lint typecheck test:unit build`
-- Gitleaks scan of the push range
+Suggestions and critiques welcome — open an issue or a discussion.
 
-**Required GitHub Secrets:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
-`NEXT_PUBLIC_POSTHOG_KEY`, `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`. After PR 4,
-`SUPABASE_URL` + `SUPABASE_ANON_KEY` are rotated to `http://127.0.0.1:54321`
-and the stock Supabase local-stack anon JWT — unit tests that touch the
-client now fail loudly (`ECONNREFUSED`) rather than silently hitting prod.
+## License
 
-### `slow` — PRs to main only
-
-Gated on `fast` passing. Brings up a real Supabase stack in the GH-Actions
-runner (native Docker, no DinD) and runs:
-
-- `supabase start` → `supabase db reset` (applies migrations + seed)
-- `supabase functions deploy add-item --no-verify-jwt` (local only)
-- `pnpm test:integration` (Vitest, `*.integration.test.ts` glob)
-- `scripts/ci-type-drift.sh` — regenerate `packages/core/src/supabase.types.ts`
-  against the local schema and fail on drift
-- `scripts/ci-rollback-explain.sh` — for each migration with a `-- ROLLBACK:`
-  block, EXPLAIN each statement against local Postgres + round-trip apply/revert
-- Next.js build + Playwright E2E at mobile (375) + desktop (1440)
-- Uploads `playwright-report/` + `test-results/` on failure
-
-**Required GitHub Secrets (beyond the fast job):** `SUPABASE_SERVICE_ROLE_KEY`
-(admin client for integration test setup/teardown), `ANTHROPIC_API_KEY_QA`
-(consumed by the locally-served add-item edge function for Claude NLP calls
-during integration tests — re-exported as `ANTHROPIC_API_KEY` inside the test
-step's env block; the prod key lives in `ANTHROPIC_API_KEY_PROD` and is pushed
-to Supabase project secrets by `deploy-functions.yml`). See `CLAUDE.md
-§ Anthropic API key split`.
-
-Three caches speed up repeated runs: pnpm store, Turborepo outputs, and
-Playwright browsers. Keys hash `pnpm-lock.yaml`.
-
-**Expected wall time:** ~6-8 min warm, ~10-12 min cold.
+[MIT](LICENSE)
