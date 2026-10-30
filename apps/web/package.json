@@ -16,7 +16,7 @@
   "dependencies": {
     "@lalista/core": "workspace:*",
     "@lalista/ui": "workspace:*",
-    "@sentry/nextjs": "^10.51.0",
+    "@sentry/nextjs": "^11.9.0",
     "@supabase/ssr": "0.10.2",
     "next": "16.2.4",
     "posthog-js": "^1.372.5",
