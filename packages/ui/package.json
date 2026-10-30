@@ -21,7 +21,7 @@
     "@vitejs/plugin-react": "^5.2.0",
     "jsdom": "^29.1.1",
     "react-dom": "^19.2.5",
-    "vitest": "^4.1.5"
+    "vitest": "^5.0.5"
   },
   "peerDependencies": {
     "react": ">=18"
