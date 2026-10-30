@@ -1,0 +1,13 @@
+{
+  "verb": 2,
+  "slug": "household-created",
+  "description": "onboarding completed, /list reached",
+  "url": "http://localhost:3000/list",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "timestamp": "2026-05-08T05:01:01.219Z",
+  "toast": null,
+  "meta": null
+}

@@ -1,0 +1,20 @@
+{
+  "verb": 5,
+  "slug": "toast-rendered-dark",
+  "description": "ConfirmationToast rendered post-add (dark theme)",
+  "url": "http://localhost:3000/list",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "timestamp": "2026-05-08T05:01:07.519Z",
+  "toast": {
+    "text": "Added Mantequilla to Costco",
+    "width": 225.23,
+    "height": 37,
+    "minBound": 100,
+    "maxBound": 384,
+    "pass": true
+  },
+  "meta": null
+}

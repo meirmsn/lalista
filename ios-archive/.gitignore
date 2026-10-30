@@ -1,0 +1,21 @@
+# Secrets — never commit
+Config.xcconfig
+
+# Xcode generated
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# SwiftPM
+.build/
+.swiftpm/
+
+# Snapshot test reference images (commit these — they are the baseline)
+# Tests/__Snapshots__/   ← do NOT ignore, snapshots should be tracked
+
+# OS
+.DS_Store

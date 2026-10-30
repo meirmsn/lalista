@@ -1,0 +1,63 @@
+/* Navigation */
+"nav.settings" = "Settings";
+"nav.back" = "Back";
+
+/* List View */
+"list.empty.tagline" = "la lista está vacía";
+"list.empty.subtitle" = "(the list is empty)";
+"list.empty.siri_hint" = "Say \"Hey Siri, add milk to lalista\"";
+"list.empty.cta" = "Add something";
+"list.fab.label" = "Add";
+"list.fab.accessibility" = "Add item to lalista";
+"list.sync_error" = "Sync paused — tap to retry";
+
+/* Item row */
+"row.unit_singular" = "%d unit";
+"row.unit_plural" = "%d units";
+"row.added_by" = "added by %@";
+"row.action.mark_bought" = "Mark as bought";
+"row.action.delete" = "Remove from list";
+
+/* Add item sheet */
+"add.title" = "Add to lalista";
+"add.placeholder" = "What do you need?";
+"add.cancel" = "Cancel";
+"add.confirm" = "Add →";
+"add.error" = "Didn't save — tap to retry";
+"add.success" = "Added %@ to %@";
+
+/* Disambiguation */
+"disambig.which_store" = "Which store?";
+"disambig.which_brand" = "Which brand?";
+"disambig.which_type" = "Which type?";
+"disambig.cancel" = "Cancel";
+"disambig.confirm" = "Confirm →";
+
+/* Item Detail */
+"detail.store" = "Store";
+"detail.brand" = "Brand";
+"detail.quantity" = "Quantity";
+"detail.added_by" = "Added by";
+"detail.added_at" = "Added";
+"detail.history_section" = "PURCHASE HISTORY";
+
+/* Settings */
+"settings.title" = "Settings";
+"settings.stores_section" = "STORES";
+"settings.add_store" = "+ Add store";
+"settings.household_section" = "HOUSEHOLD";
+"settings.invite_member" = "+ Invite member";
+"settings.account_section" = "ACCOUNT";
+"settings.sign_out" = "Sign out";
+"settings.role.owner" = "owner";
+"settings.role.member" = "member";
+"settings.role.you_suffix" = " (you)";
+
+/* Sign In */
+"signin.tagline" = "say leche. it handles the rest.";
+
+/* Siri */
+"siri.reconnect" = "Please open lalista to reconnect, then try again.";
+"siri.added" = "Added %@ to your %@ list.";
+"siri.already_on_list" = "Already on your %@ list. Want to increase the quantity?";
+"siri.error" = "Didn't go through. Try again.";

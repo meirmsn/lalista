@@ -1,0 +1,105 @@
+name: lalista
+options:
+  bundleIdPrefix: com.lalista
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+  createIntermediateGroups: true
+
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.5.0
+  SnapshotTesting:
+    url: https://github.com/pointfreeco/swift-snapshot-testing
+    from: 1.17.0
+
+configFiles:
+  Debug: Config.xcconfig
+  Release: Config.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""  # fill in your Apple Developer Team ID
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_EMIT_LOC_STRINGS: YES
+
+targets:
+  lalista:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    resources:
+      - path: Sources/Assets.xcassets
+      - path: Sources/Resources
+    entitlements:
+      path: Sources/lalista.entitlements
+    info:
+      path: Sources/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        CFBundleDisplayName: lalista
+        NSFaceIDUsageDescription: Used to authenticate your account
+        SUPABASE_URL: "$(SUPABASE_URL)"
+        SUPABASE_ANON_KEY: "$(SUPABASE_ANON_KEY)"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lalista.app
+        INFOPLIST_FILE: Sources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/lalista.entitlements
+    dependencies:
+      - package: Supabase
+        product: Supabase
+
+  lalistaIntents:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Intents
+    entitlements:
+      path: Intents/lalistaIntents.entitlements
+    info:
+      path: Intents/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionAttributes:
+            IntentsSupported:
+              - AddItemIntent
+          NSExtensionPointIdentifier: com.apple.intents-service
+          NSExtensionPrincipalClass: IntentHandler
+        CFBundleDisplayName: lalistaIntents
+        SUPABASE_URL: "$(SUPABASE_URL)"
+        SUPABASE_ANON_KEY: "$(SUPABASE_ANON_KEY)"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lalista.app.intents
+        INFOPLIST_FILE: Intents/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Intents/lalistaIntents.entitlements
+    dependencies:
+      - package: Supabase
+        product: Supabase
+      - target: lalista
+        embed: false
+
+  lalistaTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    info:
+      path: Tests/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lalista.app.tests
+        INFOPLIST_FILE: Tests/Info.plist
+    dependencies:
+      - target: lalista
+      - package: SnapshotTesting
+        product: SnapshotTesting

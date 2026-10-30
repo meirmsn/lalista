@@ -1,0 +1,119 @@
+# What: Auto-deploys Supabase edge functions to the linked prod project on push to main
+# Why: Manual `supabase functions deploy <name>` after every function-touching merge
+#      is easy to forget — and silent when forgotten. The front-end ships to prod
+#      calling the new contract while the back-end is still the old one; users
+#      experience stale-behavior + analytics misattribution with no visible error
+#      (the OLD function gracefully ignores the new request fields it doesn't know).
+# Does NOT: Apply migrations (sibling workflow `deploy-migrations.yml` handles that).
+#           Does NOT do per-function diffing — deploys ALL non-underscore-prefixed
+#           function dirs every time supabase/functions/** changes. Simpler than
+#           parsing the push diff in YAML, and per-function deploys are <10s; for
+#           lalista's current 1-function footprint the optimization cost-benefit is
+#           clearly on simplicity's side. If function count grows past ~5, swap in
+#           a per-function diff detection step.
+#
+# Convention: function dirs starting with `_` (e.g. `_shared/`) are import targets
+# only and never get deployed — the for-loop below skips them.
+
+name: Deploy edge functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+
+# One-at-a-time. Two pushes-to-main back-to-back must serialize: parallel
+# `functions deploy` against the same project surfaces as deploy-state races.
+concurrency:
+  group: deploy-functions-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy all edge functions to linked Supabase project
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Derive project ref from SUPABASE_PROD_URL
+        id: project_ref
+        env:
+          # SUPABASE_PROD_URL: prod project URL (GH Variable — public value). The
+          # project ref is sed-derived from this URL inline; SUPABASE_PROD_URL is
+          # the single source of truth shared with deploy-migrations.yml. CI's
+          # separate SUPABASE_URL Variable points at the local stack and never
+          # reaches prod — see CLAUDE.md § CI Credential Isolation.
+          SUPABASE_PROD_URL: ${{ vars.SUPABASE_PROD_URL }}
+        run: |
+          set -euo pipefail
+          PROJECT_REF=$(echo "$SUPABASE_PROD_URL" | sed -E 's|https://([^.]+)\.supabase\.co.*|\1|')
+          if [ -z "$PROJECT_REF" ] || [ "$PROJECT_REF" = "$SUPABASE_PROD_URL" ]; then
+            echo "ERROR: failed to derive project ref from SUPABASE_PROD_URL='$SUPABASE_PROD_URL'"
+            echo "Expected shape: https://<ref>.supabase.co"
+            exit 1
+          fi
+          echo "ref=$PROJECT_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Push edge-function runtime secrets to prod project
+        # Why: edge functions read their runtime env from Supabase project secrets.
+        # Without this step, the operator has to remember to run
+        #   `supabase secrets set ANTHROPIC_API_KEY=… --project-ref <ref>`
+        # manually after rotating the prod key — exact same "did anyone remember"
+        # footgun this whole workflow exists to close on the code side. Pushing
+        # from ANTHROPIC_API_KEY_PROD GH Secret on every deploy keeps Supabase
+        # secrets and GH Secrets in lockstep automatically.
+        # Soft-skip if ANTHROPIC_API_KEY_PROD is unset: the function code at
+        # supabase/functions/add-item/index.ts:166 already gracefully degrades
+        # to non-NLP path when ANTHROPIC_API_KEY is missing, and we want first-
+        # deploy-on-fresh-project to succeed before secrets are wired up.
+        # Operators see a loud warning so the unconfigured state is visible.
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ steps.project_ref.outputs.ref }}
+          ANTHROPIC_API_KEY_PROD: ${{ secrets.ANTHROPIC_API_KEY_PROD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANTHROPIC_API_KEY_PROD:-}" ]; then
+            echo "::warning::ANTHROPIC_API_KEY_PROD GH Secret unset — skipping secret push."
+            echo "::warning::add-item edge function will deploy without Claude NLP (graceful degrade to pg_trgm-only matching)."
+            echo "::warning::To enable NLP: add ANTHROPIC_API_KEY_PROD GH Secret (mint a prod-only key at console.anthropic.com)."
+            exit 0
+          fi
+          # `supabase secrets set` is idempotent — overwrites in place if the
+          # key already exists, no diff-detection needed.
+          supabase secrets set ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY_PROD" --project-ref "$PROJECT_REF"
+          echo "✓ ANTHROPIC_API_KEY pushed to Supabase project $PROJECT_REF"
+
+      - name: Deploy each function dir
+        env:
+          # Only access token needed — `functions deploy` uses the management API,
+          # not a direct DB connection (so SUPABASE_DB_PASSWORD is unnecessary here).
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ steps.project_ref.outputs.ref }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          deployed=0
+          for fn_dir in supabase/functions/*/; do
+            fn=$(basename "$fn_dir")
+            # Skip import-target dirs (convention: lead with underscore).
+            case "$fn" in _*) continue ;; esac
+            echo "::group::Deploying $fn"
+            supabase functions deploy "$fn" --project-ref "$PROJECT_REF"
+            echo "::endgroup::"
+            deployed=$((deployed + 1))
+          done
+          if [ "$deployed" -eq 0 ]; then
+            echo "WARNING: path-filter matched but no deployable function dirs found"
+            exit 1
+          fi
+          echo "Deployed $deployed function(s)"

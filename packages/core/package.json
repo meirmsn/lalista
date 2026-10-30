@@ -1,0 +1,21 @@
+{
+  "name": "@lalista/core",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.105.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^25",
+    "vitest": "^4.1.5"
+  }
+}

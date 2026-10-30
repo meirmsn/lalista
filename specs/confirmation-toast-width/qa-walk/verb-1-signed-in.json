@@ -1,0 +1,13 @@
+{
+  "verb": 1,
+  "slug": "signed-in",
+  "description": "signed in via admin-pre-confirmed credentials",
+  "url": "http://localhost:3000/onboarding",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "timestamp": "2026-05-08T05:01:00.732Z",
+  "toast": null,
+  "meta": null
+}
