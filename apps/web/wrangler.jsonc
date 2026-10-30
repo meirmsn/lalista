@@ -1,0 +1,21 @@
+// The production Worker, built by OpenNext (`pnpm build:worker`) and deployed only from `main`
+// by CI (`scripts/deploy.sh`). No account id, routes or hosts here: the account and token come
+// from the GitHub `production` environment, and the custom domain is attached in the dashboard.
+// No R2 incremental cache or image binding: the app has no ISR and no `next/image`, so the deploy
+// token needs Workers Scripts Edit and nothing else. No `global_fetch_strictly_public` flag: the
+// app never fetches its own domain, and the flag would stop the Worker reaching the local Supabase
+// at 127.0.0.1 in CI's end-to-end tests.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lalista",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+}

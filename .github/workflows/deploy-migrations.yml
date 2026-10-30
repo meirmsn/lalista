@@ -7,7 +7,7 @@
 #           Supabase reached; review the run logs and the rollback block in the
 #           migration file.
 #
-# Sequencing note: Vercel auto-deploys on push:main in parallel with this workflow.
+# Sequencing note: CI's deploy job ships the app on push:main in parallel with this workflow.
 #   For schema-additive migrations (new columns/tables, default values, NOT NULL
 #   only on backfilled columns) the parallel race is fine — old code keeps working
 #   on the new schema. For schema-mutating migrations (renames, drops, NOT NULL
@@ -32,6 +32,8 @@ jobs:
   deploy:
     name: Apply migrations to linked Supabase project
     runs-on: ubuntu-latest
+    # Secrets and SUPABASE_PROD_URL live in the `production` environment (branch rule: main).
+    environment: production
     timeout-minutes: 5
     permissions:
       contents: read

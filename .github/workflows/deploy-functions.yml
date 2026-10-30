@@ -33,6 +33,8 @@ jobs:
   deploy:
     name: Deploy all edge functions to linked Supabase project
     runs-on: ubuntu-latest
+    # Secrets and SUPABASE_PROD_URL live in the `production` environment (branch rule: main).
+    environment: production
     timeout-minutes: 5
     permissions:
       contents: read

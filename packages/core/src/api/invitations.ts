@@ -31,10 +31,11 @@ export interface CreatedInvite {
 }
 
 /**
- * Resolve the site origin per D5. NEXT_PUBLIC_SITE_URL is operator-set on
- * Vercel Production ONLY (preview falls through to window.location.origin
- * because preview URLs are ephemeral and a 7-day link from a preview deploy
- * would 404 by the time the invitee confirms).
+ * Resolve the site origin per D5. NEXT_PUBLIC_SITE_URL is set for the
+ * production build ONLY (from the `production` environment's SITE_URL, by
+ * CI's deploy job); every other build falls through to window.location.origin
+ * because a 7-day link from a short-lived build would 404 by the time the
+ * invitee confirms.
  *
  * SSR-safe: when `window` is undefined (server), require the env var or
  * fall back to a placeholder that the caller's URL will look obviously

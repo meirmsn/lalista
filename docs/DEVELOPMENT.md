@@ -46,15 +46,14 @@ round-trips via `scripts/ci-rollback-explain.sh`.
 
 ## CI
 
-> This section describes the pipeline as it ran in the private development repo. In this public snapshot GitHub Actions are turned off until secrets are set up, so none of it runs here.
-
-Two jobs, both defined in `.github/workflows/ci.yml`.
+Three jobs, all defined in `.github/workflows/ci.yml`: `fast` and `slow` check every PR, and `deploy` ships `main`.
 
 ### `fast` — every push
 
 Runs on every branch push. Blocks PR merge.
 
 - `pnpm turbo run lint typecheck test:unit build`
+- `scripts/deploy.test.sh` (the deploy script, against a fake wrangler and curl)
 - Gitleaks scan of the push range
 
 **Required GitHub Secrets:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
@@ -90,3 +89,25 @@ Three caches speed up repeated runs: pnpm store, Turborepo outputs, and
 Playwright browsers. Keys hash `pnpm-lock.yaml`.
 
 **Expected wall time:** ~6-8 min warm, ~10-12 min cold.
+
+The Playwright suite runs against the Cloudflare Worker build (`pnpm build:worker`, then
+`wrangler dev` via `E2E_TARGET=worker`), the runtime production uses. Locally,
+`pnpm --filter @lalista/web preview:worker` builds and serves the same Worker.
+
+### `deploy` — push to `main` only
+
+Runs `scripts/deploy.sh` in the GitHub `production` environment (deployment branch rule:
+`main` only): builds the app with OpenNext, records the live version, deploys the `lalista`
+Worker with wrangler, then smoke-checks that `/build.txt` is the commit and `/` renders.
+The job summary has the new version, the one it replaced and the line that undoes it.
+It reads, from the `production` environment:
+
+- secrets `CLOUDFLARE_API_TOKEN` (Workers Scripts Edit only) and, optionally,
+  `SENTRY_AUTH_TOKEN` (source maps);
+- variables `CLOUDFLARE_ACCOUNT_ID`, `SUPABASE_PROD_URL`, `SUPABASE_PROD_ANON_KEY`, and
+  optionally `SITE_URL` (the custom domain: invite links and the domain smoke check),
+  `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_POSTHOG_KEY`, `SENTRY_ORG`.
+
+`deploy-migrations.yml`, `deploy-functions.yml` and `keepalive.yml` also run in `production`
+and read `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `ANTHROPIC_API_KEY_PROD`,
+`SUPABASE_PROD_URL` and `SUPABASE_PROD_ANON_KEY` from it.

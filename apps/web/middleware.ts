@@ -54,7 +54,7 @@ export async function middleware(request: NextRequest) {
     request: { headers: request.headers },
   });
 
-  // .trim() defends against whitespace-contaminated env vars on Vercel —
+  // .trim() defends against whitespace-contaminated deploy env vars —
   // see lib/supabase/server.ts for the 2026-04-26 SSR-500 incident note.
   const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim();
   const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();

@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
               // hit us.i.posthog.com.
               //
               // .trim() defends against whitespace-contaminated env vars on
-              // Vercel: a trailing newline in NEXT_PUBLIC_SUPABASE_URL
+              // deploy env vars: a trailing newline in NEXT_PUBLIC_SUPABASE_URL
               // surfaced as `%0A` in the deployed CSP header (visible in
               // production CSP 2026-04-26) AND broke SSR `/` because the
               // unsanitized URL was passed to fetch elsewhere. Symmetric

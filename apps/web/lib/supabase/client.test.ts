@@ -31,7 +31,7 @@ describe('lib/supabase/client', () => {
     expect(client).toEqual({ __kind: 'browser-client' });
   });
 
-  it('trims whitespace from URL + ANON_KEY env vars (Vercel fat-finger defense)', async () => {
+  it('trims whitespace from URL + ANON_KEY env vars (deploy env fat-finger defense)', async () => {
     // 2026-04-26 prod incident: trailing newline in NEXT_PUBLIC_SUPABASE_URL
     // surfaced as `%0A` in CSP header + broke SSR fetch. Defense: trim at
     // every read site. See server.ts comment for the full incident note.

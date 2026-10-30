@@ -19,7 +19,7 @@ import { assertNotProdUrlInTestEnv, type Database } from '@lalista/core';
  * `packages/core/src/supabase.ts` for the guard's rationale).
  */
 export function createClient() {
-  // .trim() defends against whitespace-contaminated env vars on Vercel —
+  // .trim() defends against whitespace-contaminated deploy env vars —
   // a trailing newline in NEXT_PUBLIC_SUPABASE_URL produced HTTP 500 on
   // SSR `/` (2026-04-26). See server.ts for the full incident note.
   const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim();

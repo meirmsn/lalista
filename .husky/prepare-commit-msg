@@ -1,4 +1,8 @@
 # Append Layer 1 bypass-flag values as Git trailers.
 # Runs after pre-commit, before the commit message is finalized.
 # See kit/scripts/commit-hooks/append-bypass-trailers.sh for the contract.
-[ -d /devshop/kit ] && bash /devshop/kit/scripts/commit-hooks/append-bypass-trailers.sh "$@"
+# Outside the devcontainer (no /devshop/kit) it does nothing; a bare `[ -d ] &&` would
+# exit 1 there and block every commit.
+if [ -d /devshop/kit ]; then
+  bash /devshop/kit/scripts/commit-hooks/append-bypass-trailers.sh "$@"
+fi

@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "build:worker": "opennextjs-cloudflare build",
+    "preview:worker": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -18,12 +20,13 @@
     "@lalista/ui": "workspace:*",
     "@sentry/nextjs": "^10.51.0",
     "@supabase/ssr": "0.10.2",
-    "next": "16.2.4",
+    "next": "16.4.1",
     "posthog-js": "^1.372.5",
     "react": "19.2.5",
     "react-dom": "19.2.5"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "1.20.12",
     "@playwright/test": "^1.59.1",
     "@supabase/supabase-js": "2.105.1",
     "@tailwindcss/postcss": "^4",
@@ -36,10 +39,11 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.2.0",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint-config-next": "16.4.1",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "wrangler": "4.149.0"
   }
 }

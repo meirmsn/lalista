@@ -198,7 +198,7 @@ SUPABASE_SERVICE_ROLE_KEY: <well-known supabase-local default JWT>
 ```
 
 - `NODE_OPTIONS` raises Node.js heap to 4GB. Claude Code is a Node.js process and can be memory-hungry on large codebases; the default limit (~512MB-1GB) can cause crashes.
-- `SUPABASE_URL` + the two key vars are auto-set on every workspace start so vitest, integration tests, ad-hoc supabase-js scripts work without any manual env-prefix. The keys are the published well-known supabase-local defaults (deterministic from the default `JWT_SECRET` in `supabase/config.toml` — same values CI uses; not real secrets). Vercel/prod env is on a separate surface and untouched.
+- `SUPABASE_URL` + the two key vars are auto-set on every workspace start so vitest, integration tests, ad-hoc supabase-js scripts work without any manual env-prefix. The keys are the published well-known supabase-local defaults (deterministic from the default `JWT_SECRET` in `supabase/config.toml` — same values CI uses; not real secrets). Production values live in the GitHub `production` environment and are untouched.
 
 ### Startup
 
@@ -267,7 +267,7 @@ The general pattern is: explicitly allow the things you trust, then block everyt
   - The script detects the host machine's local network range (e.g. `192.168.x.x`) and allows traffic to it. This lets the container reach your local machine and LAN resources without opening the broader internet
 - `host.docker.internal:54321/54322` (Option 3 — supabase data plane bound on the host by spawned siblings; resolved via `getent ahostsv4` to force IPv4 since iptables is IPv4-only and Docker Desktop's resolution can flip to IPv6 between restarts)
 - GitHub IP ranges (fetched dynamically from `api.github.com/meta`) + GitHub Actions artifact-storage Azure Blob shards
-- Specific domains: `registry.npmjs.org`, `api.anthropic.com`, `sentry.io`, `statsig.anthropic.com`, `statsig.com`, VS Code marketplace and update servers, Playwright CDNs, Vercel API + project domain, Sentry ingest endpoint, PostHog ingest, Docker Hub (for image pulls in the runner), the project's `<ref>.supabase.co` data-plane host (anon-key data plane only)
+- Specific domains: `registry.npmjs.org`, `api.anthropic.com`, `sentry.io`, `statsig.anthropic.com`, `statsig.com`, VS Code marketplace and update servers, Playwright CDNs, Sentry ingest endpoint, PostHog ingest, Docker Hub (for image pulls in the runner), the project's `<ref>.supabase.co` data-plane host (anon-key data plane only)
 
 `api.supabase.com` (control plane) and `aws-0-us-west-2.pooler.supabase.com` (connection pooler) are deliberately NOT in the allowlist under Option 3 — migrations + functions deploy from CI on push-to-main; the local stack runs in the sibling `supabase-runner` and is reached through host-port forwarding, not through Supabase's public APIs.
 

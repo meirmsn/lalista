@@ -27,6 +27,12 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['**/node_modules/**', '**/.next/**', '**/dist/**'],
+    ignores: [
+      '**/node_modules/**',
+      '**/.next/**',
+      '**/.open-next/**',
+      '**/.wrangler/**',
+      '**/dist/**',
+    ],
   }
 );

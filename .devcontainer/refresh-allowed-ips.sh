@@ -4,7 +4,7 @@
 # only (no iptables touch, no flush, no session disruption).
 #
 # Why this exists: init-firewall.sh resolves domains to IPs once at
-# container start, but CDN edge IPs (Vercel/Cloudflare/etc.) rotate during
+# container start, but CDN edge IPs (Cloudflare etc.) rotate during
 # the day. The cached ipset goes stale and post-deploy egress to prod
 # fails with EHOSTUNREACH / "No route to host". Re-running init-firewall.sh
 # is unsafe (full iptables flush; known to hang the Claude session per
