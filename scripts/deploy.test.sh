@@ -29,13 +29,14 @@ case "$1 $2" in
     printf '{"type":"deploy","version":1,"version_id":"v-new","targets":["lalista.example.workers.dev"]}\n' >"$WRANGLER_OUTPUT_FILE_PATH" ;;
 esac
 EOF
-# Fake curl: serves $FAKE_SHA as /build.txt and a page with a title.
+# Fake curl: serves $FAKE_SHA as /build.txt, and a page with a title unless FAKE_TITLE=no.
 cat >"$WORK/curl" <<'EOF'
 #!/usr/bin/env bash
 url="${*: -1}"
 case "$url" in
   */build.txt) echo "$FAKE_SHA" ;;
-  *) echo "<html><head><title>lalista</title></head></html>" ;;
+  *) if [ "${FAKE_TITLE:-yes}" = no ]; then echo "<html><head></head></html>"; else
+    echo "<html><head><title>lalista</title></head></html>"; fi ;;
 esac
 EOF
 chmod +x "$WORK/wrangler" "$WORK/curl"
@@ -99,6 +100,9 @@ expect_not "  nothing deployed" '^deploy( |$)' "$WORK/log"
 run 1 "AC-2 fails the smoke check when another build is live" FAKE_SHA=other
 expect "  says it may be live, with the undo line" 'may be live.*Undo: npx wrangler rollback v-old' "$WORK/stdout"
 expect "  deployed=yes was written" '^deployed=yes$' "$WORK/out"
+
+run 1 "AC-2 fails the smoke check when / has no title" FAKE_TITLE=no
+expect "  says it may be live, with the undo line" 'may be live.*Undo: npx wrangler rollback v-old' "$WORK/stdout"
 
 run 0 "AC-2 checks the custom domain when SITE_URL is set" SITE_URL=https://example.test
 expect "  domain check passed" '^site_smoke=passed$' "$WORK/out"
