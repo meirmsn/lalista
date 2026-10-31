@@ -36,6 +36,8 @@ it can without them.
 - `deploy-migrations.yml` and `deploy-functions.yml` can also be run by hand, so a new production
   Supabase project gets the schema and the edge function without waiting for a change under
   `supabase/`. The old project was paused and may not be restorable (owner, 2026-10-31).
+- After the go, each acceptance item gained a "verified by review" step, at the reviewer's
+  request; what the items require is unchanged ("ok sounds good", owner, 2026-10-31).
 - The devshop's CI tiers (`scripts/check-fast.sh`, `check-slow.sh`, the PR-title rule) come with
   the devshop upgrade, a separate change.
 - After the merge, the owner:
