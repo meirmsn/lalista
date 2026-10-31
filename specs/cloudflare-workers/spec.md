@@ -1,6 +1,6 @@
 # Move the web app from Vercel to Cloudflare Workers
 
-**Go:** pending
+**Go:** "1, 2: sound good" and "3- oh yeah fix the readme"; previews in the next change (owner, 2026-10-31)
 
 ## Intent
 
@@ -33,6 +33,9 @@ it can without them.
   project, which is what happened.
 - The README no longer says CI runs in a private repo with Actions off here. With this change, CI
   and the deploy run in this repo.
+- `deploy-migrations.yml` and `deploy-functions.yml` can also be run by hand, so a new production
+  Supabase project gets the schema and the edge function without waiting for a change under
+  `supabase/`. The old project was paused and may not be restorable (owner, 2026-10-31).
 - The devshop's CI tiers (`scripts/check-fast.sh`, `check-slow.sh`, the PR-title rule) come with
   the devshop upgrade, a separate change.
 - After the merge, the owner:
@@ -57,13 +60,15 @@ it can without them.
 - **AC-4** CI's `slow` job runs the Playwright suite against the Worker build
   (`E2E_TARGET=worker`).
 - **AC-5** `deploy-migrations.yml`, `deploy-functions.yml` and `keepalive.yml` run in the
-  `production` environment, and keepalive queries the database.
+  `production` environment, and keepalive queries the database. The two deploy workflows can
+  also be started by hand (`workflow_dispatch`).
 - **AC-6** No file outside `pnpm-lock.yaml`, `BUILD-LOG.md` and `specs/` mentions Vercel. There is
   no `vercel.json` and no `vercel` dependency.
 
 ## Out of scope
 
-- Per-PR preview Workers and the preview-only Cloudflare account.
+- Per-PR preview Workers, the preview-only Cloudflare account and the preview Supabase project:
+  the next change (owner, 2026-10-31).
 - Attaching the custom domain and deleting the Vercel project (owner, after merge).
 - The devshop CI-tier alignment and devshop upgrade.
 - Any change to the app's behaviour.

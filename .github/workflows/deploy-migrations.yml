@@ -21,6 +21,9 @@ on:
     branches: [main]
     paths:
       - 'supabase/migrations/**'
+  # By hand (Actions → Run workflow, on main) to fill a new or rebuilt project; the
+  # `production` environment refuses any other branch.
+  workflow_dispatch:
 
 # One-at-a-time. Two pushes-to-main back-to-back must serialize: parallel db push
 # on the same project surfaces as race conditions in the migration history table.
