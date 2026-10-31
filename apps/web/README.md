@@ -67,7 +67,7 @@ Auth-only helpers (under `apps/web/components/auth/`):
 
 ## Public assets
 
-Files under `public/` are served verbatim from the Vercel deploy at `https://lalista.store/<filename>`. Each asset earns its place by being referenced from a specific consumer — usually the Next root metadata, the PWA manifest, or one of the Supabase email templates. The list also exists so anyone touching the email templates or the PWA shell can discover what's available without digging through the deploy.
+Files under `public/` are served verbatim from the production Worker at `https://lalista.store/<filename>`. Each asset earns its place by being referenced from a specific consumer — usually the Next root metadata, the PWA manifest, or one of the Supabase email templates. The list also exists so anyone touching the email templates or the PWA shell can discover what's available without digging through the deploy.
 
 | File                     | Consumer                                                                            | Source-of-truth                                                                            |
 | ------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |

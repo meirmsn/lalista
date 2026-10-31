@@ -17,12 +17,12 @@ jobs:
         # No `version:` — action-setup reads pnpm version from
         # package.json#packageManager. Pinning to "latest" started
         # grabbing pnpm 11 (needs Node 22.13+) on 2026-05-07 while we
-        # pin Node 20, breaking every CI run; using packageManager keeps
+        # pinned Node 20, breaking every CI run; using packageManager keeps
         # CI in lockstep with the devcontainer.
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .nvmrc
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
@@ -42,6 +42,9 @@ jobs:
 
       - run: pnpm turbo run lint typecheck test:unit build
 
+      - name: deploy.sh tests (fake wrangler and curl, no network)
+        run: bash scripts/deploy.test.sh
+
     env:
       # Post-security-posture-cleanup: SUPABASE_URL / SUPABASE_ANON_KEY /
       # NEXT_PUBLIC_POSTHOG_KEY are GH Variables (public values):
@@ -50,7 +53,8 @@ jobs:
       #     network calls).
       #   SUPABASE_ANON_KEY = published local-stack default JWT.
       #   NEXT_PUBLIC_POSTHOG_KEY = public by NEXT_PUBLIC_* convention.
-      # See CLAUDE.md § Gotchas for the GH-vs-Vercel surface split.
+      # Production's values live in the `production` environment, read only by
+      # the deploy job below.
       SUPABASE_URL: ${{ vars.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
@@ -142,12 +146,12 @@ jobs:
         # No `version:` — action-setup reads pnpm version from
         # package.json#packageManager. Pinning to "latest" started
         # grabbing pnpm 11 (needs Node 22.13+) on 2026-05-07 while we
-        # pin Node 20, breaking every CI run; using packageManager keeps
+        # pinned Node 20, breaking every CI run; using packageManager keeps
         # CI in lockstep with the devcontainer.
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .nvmrc
           cache: 'pnpm'
 
       # Cache 1 of 3: pnpm store (speeds up install on repeat PR pushes).
@@ -192,11 +196,13 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @lalista/web exec playwright install chromium webkit
 
-      # Supabase CLI + local stack. `setup-cli@v1` picks up the CLI version
-      # pinned in .devcontainer/devcontainer.json so CI + local stay in sync.
+      # Supabase CLI + local stack, at the version the devcontainer pins
+      # (SUPABASE_CLI_VERSION in .devcontainer/compose.yml), so CI and local
+      # stay in sync. `latest` broke the type-drift check when a newer CLI
+      # started writing `ComputedFields` into the generated types.
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.98.2
 
       - name: Start local Supabase
         run: |
@@ -346,15 +352,19 @@ jobs:
       - name: Rollback SQL EXPLAIN check
         run: bash scripts/ci-rollback-explain.sh
 
-      - name: Build web app (for Playwright)
+      # The E2E suite runs against the Cloudflare Worker build (OpenNext), served by
+      # wrangler's local Workers runtime: the same runtime production runs on.
+      - name: Build web app as a Worker (for Playwright)
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
-        run: pnpm --filter @lalista/web build
+        run: pnpm --filter @lalista/web build:worker
 
       - name: Run Playwright E2E (mobile + desktop)
         env:
           CI: '1'
+          E2E_TARGET: worker
+          WRANGLER_SEND_METRICS: 'false'
           NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
           SUPABASE_URL: ${{ env.API_URL }}
@@ -374,3 +384,51 @@ jobs:
             apps/web/playwright-report/
             apps/web/test-results/
           retention-days: 7
+
+  # Production deploy: `main` only, after `fast` passed on this commit (`slow` runs on PRs
+  # only, so it is not a need here: a skipped need would skip the deploy). Everything the
+  # deploy reads lives in the `production` environment, whose deployment branch rule allows
+  # `main` alone. scripts/deploy.sh records the version it replaces and smoke-checks the new one.
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [fast]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Deploy (scripts/deploy.sh)
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_PROD_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_PROD_ANON_KEY }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.SITE_URL }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          BUILD_SHA: ${{ github.sha }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: scripts/deploy.sh

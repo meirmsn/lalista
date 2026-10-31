@@ -71,9 +71,9 @@ SKIPPED_DOMAINS=()
 # Resolve and add other allowed domains
 # === PROJECT-SPECIFIC DOMAINS ===
 # Static template list below covers stack-common services (npm / GitHub /
-# Anthropic / Sentry / Vercel / VS Code / common CDNs / ntfy). Project-
+# Anthropic / Sentry / VS Code / common CDNs / ntfy). Project-
 # specific domains (your Supabase project URL, Sentry org ingest, PostHog
-# region, Vercel app URL) go in .devcontainer/firewall-extra-domains —
+# region, production URL) go in .devcontainer/firewall-extra-domains —
 # a project-owned [scaffold-once] file that init-devshop.sh seeds and
 # locks (root:root 644). Edits there persist across container starts.
 # init-firewall.sh itself is [locked] — edits below revert on next start.
@@ -108,8 +108,6 @@ for domain in \
     "update.code.visualstudio.com" \
     "cdn.playwright.dev" \
     "playwright.download.prss.microsoft.com" \
-    "vercel.com" \
-    "api.vercel.com" \
     "cdn.jsdelivr.net" \
     "objects.githubusercontent.com" \
     "fonts.googleapis.com" \

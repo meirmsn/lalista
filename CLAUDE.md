@@ -19,7 +19,7 @@ Voice-first bilingual grocery list app. Migrating from Swift/SwiftUI to React (N
 - **Edge functions**: `supabase/functions/` (add-item with Claude NLP + auth validation)
 - **Design system**: tokens in `packages/ui/src/tokens.ts`, components in `packages/ui/src/` (shared) and `apps/web/components/` (page-level), fonts in `apps/web/app/layout.tsx`. Brand-asset generators (one-off scripts that produce static assets like the email-template wordmark) in `design/` — paired with the root `DESIGN.md`. See `apps/web/README.md § Public assets` for the per-asset table.
 - **Testing**: unit `packages/*/**.test.ts`, integration `*.integration.test.ts` (opt-in via `VITEST_INTEGRATION=1`; run on CI slow-job only), E2E `apps/web/e2e/`, fixtures `supabase/seed.sql`
-- **CI/CD**: `.github/workflows/ci.yml` (fast + slow jobs — slow runs Supabase locally in the runner, integration tests, Playwright × 2 viewports, edge-fn deploy, type-drift, rollback EXPLAIN), `.github/workflows/deploy-migrations.yml` + `.github/workflows/deploy-functions.yml` (auto-deploy on push:main, path-filtered to `supabase/migrations/**` + `supabase/functions/**`; both sed-derive the project ref from the `SUPABASE_PROD_URL` Variable). CI helper scripts in `scripts/` (`ci-type-drift.sh`, `ci-rollback-explain.sh`), Vercel config `apps/web/vercel.json`
+- **CI/CD**: `.github/workflows/ci.yml` (fast + slow jobs — slow runs Supabase locally in the runner, integration tests, Playwright × 2 viewports, edge-fn deploy, type-drift, rollback EXPLAIN), `.github/workflows/deploy-migrations.yml` + `.github/workflows/deploy-functions.yml` (auto-deploy on push:main, path-filtered to `supabase/migrations/**` + `supabase/functions/**`; both sed-derive the project ref from the `SUPABASE_PROD_URL` Variable). CI helper scripts in `scripts/` (`ci-type-drift.sh`, `ci-rollback-explain.sh`). Web app deploy: CI's `deploy` job (push:main only, `production` environment) runs `scripts/deploy.sh` (tested by `scripts/deploy.test.sh` in the fast job); Worker config `apps/web/wrangler.jsonc` + `apps/web/open-next.config.ts`; the slow job's Playwright runs against the Worker build (`E2E_TARGET=worker`)
 - **Observability**: Sentry in `apps/web/sentry.*.config.ts` + `instrumentation.ts`, PostHog in `apps/web/app/providers.tsx`, event taxonomy in `METRICS.md`
 - **PWA**: `apps/web/public/manifest.json`, Apple meta tags in `apps/web/app/layout.tsx`
 
@@ -49,6 +49,8 @@ Non-obvious rules surfaced by shipping work. Read before touching the relevant a
 
 - **Dropping a UNIQUE constraint? Audit `supabase/seed.sql` AND any cross-join backfill ordering in the same migration** (my-stores Phase 3 finding, 2026-05-11). A migration that drops a UNIQUE constraint (e.g. migration 016's `alter table stores drop constraint stores_name_key`) silently breaks every seed/migration site that referenced that constraint as an `on conflict (col)` target — Postgres raises `42P10 "no unique or exclusion constraint matching the ON CONFLICT specification"` and the seed run halts mid-way, leaving the DB in a partial state. **How to apply**: when dropping a UNIQUE, grep `supabase/seed.sql` + all migrations for `on conflict (<col>)` referencing the dropped column, and rewrite each site to either (a) `on conflict do nothing` if seed is the only writer for those rows, OR (b) `insert … select … where not exists (select 1 from <table> where <col> = v.<col>)` if the migration ALSO inserts overlapping rows (e.g. migration 001 inserts Costco/Walmart/Target + seed re-inserts them — pattern (b) dedupes correctly while (a) would accumulate duplicates). **Also audit cross-join backfill ordering**: if the same migration ships a cross-join backfill (`insert into X select from A cross join B …`) AND a seed inserts rows into A AFTER the migration runs, the backfill targets the migration-time empty A — those rows need a paired backfill in seed.sql (e.g. migration 016's `household_stores` cross-join targets zero households at migration-time; seed re-issues the same cross-join after inserting Alice + Bob). All three issues caught in a single Phase 3 because `pnpm db:reset` was the canonical surface that surfaced them. Defense-in-depth trigger (D4) firing during seed is the loud-fail signal — chase it back through this chain.
 
+- **The web app deploys only from CI, as a Cloudflare Worker; never from a session.** CI's `deploy` job runs `scripts/deploy.sh` on push to `main` in the GitHub `production` environment (deployment branch rule: `main` only), which holds every production value: `CLOUDFLARE_API_TOKEN` (Workers Scripts Edit only), `CLOUDFLARE_ACCOUNT_ID`, `SUPABASE_PROD_URL`, `SUPABASE_PROD_ANON_KEY`, `SITE_URL`, and the Supabase/Sentry/Anthropic secrets. **How to apply**: never run `wrangler deploy`, `wrangler rollback` or `wrangler delete` from a session — rollback is the owner's call, using the undo line in the deploy summary. Every value the app reads is `NEXT_PUBLIC_*`, inlined at BUILD time, so a production value changes only with a new deploy; a new runtime (non-`NEXT_PUBLIC_`) env var would have to be set on the Worker, not just in GitHub. `wrangler.jsonc` holds no account id, routes or hosts, and `deploy.sh` refuses a config naming any Worker but `lalista` (a Workers token reaches every Worker in its account). No ISR, `next/image` or R2 cache: adding one needs an R2 bucket and a wider token, so it's a spec decision. Version pins: `@opennextjs/cloudflare` declares the Next versions it supports (`peerDependencies.next`); bump Next and OpenNext together and check the Worker in `pnpm preview:worker` (Next 16.3.8 and 16.4.1 fail `next/font/google` under Turbopack about one clean build in three, with "next/font/google queries have exactly one entry" — 16.4.2 doesn't, so after a Next bump build several times from a clean `.next` before trusting one green build; OpenNext 1.20.11 threw `Unexpected loadManifest(...preview-props.json)` on Next 16.4.1 — 1.20.12 fixed it).
+
 ### Testing
 
 **E2E-per-surface invariant (PR 5).** Every user-observable surface has an E2E spec that exercises the primary action through the UI — not just an API-wrapper unit test. Concretely:
@@ -62,13 +64,13 @@ Unit tests live alongside their source (`packages/*/**.test.ts`); integration te
 
 ### Stack
 
-Next.js 15 (App Router) · Turborepo + pnpm · Supabase (DB + Auth + Edge Functions) · Vercel · Sentry · PostHog · Vitest · Playwright · GitHub Actions · ESLint + Prettier · husky + lint-staged · gitleaks · DCG
+Next.js 15 (App Router) · Turborepo + pnpm · Supabase (DB + Auth + Edge Functions) · Cloudflare Workers (via OpenNext) · Sentry · PostHog · Vitest · Playwright · GitHub Actions · ESLint + Prettier · husky + lint-staged · gitleaks · DCG
 
 ### Env Var Naming
 
 GitHub Secrets use the base name; each surface adds its prefix. `packages/core` does NOT read env vars — exports `createClient(config)`, each app passes prefixed vars in.
 
-| Base name                 | Next.js (Vercel)                |
+| Base name                 | Next.js (production build)      |
 | ------------------------- | ------------------------------- |
 | `SUPABASE_URL`            | `NEXT_PUBLIC_SUPABASE_URL`      |
 | `SUPABASE_ANON_KEY`       | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
@@ -98,9 +100,9 @@ pnpm db:gen-types               # regen types from local stack (relay → supaba
 
 ## Deploy Configuration (configured by /setup-deploy)
 
-- Platform: Vercel
-- Production URL: https://lalista.store (custom domain; the platform-assigned `lalista-ten.vercel.app` 308-redirects to it)
-- Deploy workflow: auto-deploy on push (preview on PR, production on merge to main)
+- Platform: Cloudflare Workers (Next.js built with OpenNext, `@opennextjs/cloudflare`)
+- Production URL: https://lalista.store (custom domain attached to the `lalista` Worker in the Cloudflare dashboard; until then the Worker's `workers.dev` URL)
+- Deploy workflow: CI's `deploy` job on push to main (no per-PR previews yet)
 - Deploy status command: HTTP health check
 - Merge method: squash
 - Project type: web app
@@ -110,5 +112,5 @@ pnpm db:gen-types               # regen types from local stack (relay → supaba
 
 - Pre-merge: none
 - Deploy trigger: automatic on push to main
-- Deploy status: poll production URL
+- Deploy status: the `deploy` job's summary (version, the version it replaced, smoke check, undo line)
 - Health check: https://lalista.store

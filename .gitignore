@@ -21,6 +21,12 @@ test-results/
 # Turbo
 .turbo/
 
+# Cloudflare Workers (OpenNext build output, wrangler state, local secrets)
+.open-next/
+.wrangler/
+.dev.vars*
+apps/web/public/build.txt
+
 # Next.js telemetry
 **/cache/config.json
 
@@ -45,7 +51,6 @@ test-results/
 
 # OS
 .DS_Store
-.vercel
 
 # Screenshots convention — /screenshots/ is for dev-context shots you
 # share with Claude / the team. Folder contents are ignored; only the

@@ -21,7 +21,8 @@ import { cookies } from 'next/headers';
  * vitest run would accidentally dial the production project.
  */
 export async function createClient() {
-  // .trim() defends against whitespace-contaminated env vars on Vercel.
+  // .trim() defends against whitespace-contaminated deploy env vars (a
+  // value pasted into a host's or GitHub's settings can carry a newline).
   // A trailing newline in NEXT_PUBLIC_SUPABASE_URL produced HTTP 500 on
   // production `/` (2026-04-26): SSR getUser() fetched the malformed URL
   // ("https://....supabase.co\n") and threw uncaught. The CSP header

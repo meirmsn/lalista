@@ -41,9 +41,15 @@ export default defineConfig({
       },
     },
   ],
+  // E2E_TARGET=worker serves the OpenNext build (`pnpm build:worker` first) in wrangler's local
+  // Workers runtime, the one production runs on; CI's slow job uses it. Otherwise `next dev`.
   webServer: {
-    command: 'pnpm run dev',
+    command:
+      process.env.E2E_TARGET === 'worker'
+        ? 'pnpm exec wrangler dev --port 3000 --ip 127.0.0.1'
+        : 'pnpm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
   },
 });

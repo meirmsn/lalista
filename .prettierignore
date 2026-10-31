@@ -8,6 +8,8 @@ node_modules
 # Build output
 dist
 build
+.open-next
+.wrangler
 coverage
 
 # Generated files

@@ -72,8 +72,8 @@ describe('lib/supabase/server', () => {
     });
   });
 
-  it('trims whitespace from URL + ANON_KEY env vars (Vercel fat-finger defense)', async () => {
-    // 2026-04-26 prod incident: Vercel had a trailing newline in
+  it('trims whitespace from URL + ANON_KEY env vars (deploy env fat-finger defense)', async () => {
+    // 2026-04-26 prod incident: the hosting env had a trailing newline in
     // NEXT_PUBLIC_SUPABASE_URL; SSR / threw 500 because fetch rejected the
     // malformed URL. Defense: trim at every read site. See server.ts comment.
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.supabase.co\n';

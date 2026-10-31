@@ -7,7 +7,7 @@
 
 ## High-level shape
 
-lalista is a Next.js 15 App Router web app on Vercel, talking to Supabase (Postgres + Auth + Edge Functions). The novel piece is the `add-item` edge function: a single orchestration call that runs Claude API NLP normalization, pg_trgm fuzzy matching, history-based store routing, and brand preference lookup server-side, returning either a row to optimistic-insert or a disambiguation question for the client.
+lalista is a Next.js 16 App Router web app on Cloudflare Workers (built with OpenNext), talking to Supabase (Postgres + Auth + Edge Functions). The novel piece is the `add-item` edge function: a single orchestration call that runs Claude API NLP normalization, pg_trgm fuzzy matching, history-based store routing, and brand preference lookup server-side, returning either a row to optimistic-insert or a disambiguation question for the client.
 
 ```text
                 ┌───────────────────────────────┐
@@ -115,7 +115,7 @@ lalista is a Next.js 15 App Router web app on Vercel, talking to Supabase (Postg
 
 1. Owner taps `/settings → Members → "invite someone"` → `create_invite` RPC mints a single-active token (revokes any prior unused invite for the same household). `<InviteLinkSheet>` opens with copy + Web-Share buttons. URL: `${siteUrl}/join/<token>`.
 2. Recipient taps the link. **Signed-out**: middleware allows `/join/<token>` through; `<JoinClient>` redirects to `/sign-up?invite=<token>`. The `signUpWithPassword(…, inviteToken?)` 5th-positional arg sets `options.emailRedirectTo = ${siteUrl}/auth/callback?invite=<encoded-token>` so the token survives Supabase's email-confirmation gap. `<AwaitingConfirmationCard>` surfaces "you're joining {household name}" while the user clicks the email link in another tab.
-3. The email's confirm link bounces through `/auth/callback?invite=<token>` (`apps/web/app/auth/callback/route.ts`) which `exchangeCodeForSession`s, then redirects to `/join/<token>` (instead of the default `/onboarding`). Server-rendered `/join/[token]` runs `accept_invite(token)`. Success → `/list`. Six failure states render colocated cards: `<InviteExpired>`, `<InviteUsed>`, `<AlreadyInHousehold>`, `<OwnInviteLink>`, `<LastMemberLeft>`, `<InviteUnavailable>` (deploy-race window between Vercel front-end deploy and `deploy-migrations.yml` apply).
+3. The email's confirm link bounces through `/auth/callback?invite=<token>` (`apps/web/app/auth/callback/route.ts`) which `exchangeCodeForSession`s, then redirects to `/join/<token>` (instead of the default `/onboarding`). Server-rendered `/join/[token]` runs `accept_invite(token)`. Success → `/list`. Six failure states render colocated cards: `<InviteExpired>`, `<InviteUsed>`, `<AlreadyInHousehold>`, `<OwnInviteLink>`, `<LastMemberLeft>`, `<InviteUnavailable>` (deploy-race window between the Worker front-end deploy and `deploy-migrations.yml` apply).
 4. **Signed-in** recipient (different account): same `/join/<token>` route runs `accept_invite` directly. Single-household v0 invariant means a user already in another household sees `<AlreadyInHousehold>` instead of silent membership swap.
 5. `/list` becomes household-aware: `fetchListEntries` returns `{entries, currentHouseholdId}`; if the caller's `currentHouseholdId` is null mid-session (member was removed by owner), the API throws `RemovedFromHouseholdError`, the route catches it, the user lands on `/onboarding?removed=1` with `<RemovedFromHouseholdNotice>`. The header gains a household-name caption that subscribes once at page-load — `households` is intentionally NOT in `subscribeToList`'s realtime publication; rename shows on next nav (D6 leak-window mitigation).
 6. Audit feed: every state-change RPC writes a `household_audit_events` row. `<HouseholdAuditSection>` (collapsed by default with chevron disclosure) hydrates `actor_user_id` + `target_user_id` to display names via a 2-query read (audit rows → distinct user IDs → `profiles.in()`), with `'someone'` fallback for deleted users — same pattern as `addedByName` for `list_entries`.
@@ -124,23 +124,23 @@ lalista is a Next.js 15 App Router web app on Vercel, talking to Supabase (Postg
 
 | Service                      | Role                                          | Credentials                                                                                      | Configured in                                               |
 | ---------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| Supabase Auth                | sign-up / sign-in / session JWT               | anon JWT (public), service-role (CI local-stack only — NEVER in prod CI)                         | `apps/web/.env.local`, Vercel env vars                      |
+| Supabase Auth                | sign-up / sign-in / session JWT               | anon JWT (public), service-role (CI local-stack only — NEVER in prod CI)                         | `apps/web/.env.local`, GH `production` environment          |
 | Supabase Postgres + Realtime | data plane + WebSocket for cross-session sync | anon JWT for queries (RLS gates writes), DB password for migrations (operator-side, JIT)         | `apps/web/.env.local`, GH Variables                         |
 | Anthropic Claude API         | NLP normalization in `add-item` edge function | `ANTHROPIC_API_KEY_QA` (CI + local), `ANTHROPIC_API_KEY_PROD` (prod-only, console.anthropic.com) | GH Secrets, `.devcontainer/.env`, `supabase/functions/.env` |
 | Sentry                       | error capture + tracing                       | DSN (public), auth token (CI sourcemap upload)                                                   | `apps/web/sentry.*.config.ts`, `instrumentation.ts`         |
 | PostHog                      | product analytics                             | project key (public)                                                                             | `apps/web/app/providers.tsx`                                |
-| Vercel                       | hosts the Next.js app                         | Vercel auth token (CI)                                                                           | `apps/web/vercel.json`                                      |
+| Cloudflare Workers           | hosts the Next.js app (OpenNext build)        | API token, Workers Scripts Edit only (CI deploy job)                                             | `apps/web/wrangler.jsonc`, GH `production` environment      |
 
 ## Deployment topology
 
-| Surface                 | Where                   | Trigger                                           | Workflow                                  |
-| ----------------------- | ----------------------- | ------------------------------------------------- | ----------------------------------------- |
-| Next.js web app         | Vercel                  | Auto on push (preview on PR, production on merge) | Vercel project (no GH workflow needed)    |
-| Supabase migrations     | Supabase Postgres       | Auto on push:main when `supabase/migrations/**`   | `.github/workflows/deploy-migrations.yml` |
-| Supabase edge functions | Supabase Edge Runtime   | Auto on push:main when `supabase/functions/**`    | `.github/workflows/deploy-functions.yml`  |
-| Supabase auth config    | Supabase Auth dashboard | Manual                                            | dashboard / Management API                |
+| Surface                 | Where                   | Trigger                                         | Workflow                                  |
+| ----------------------- | ----------------------- | ----------------------------------------------- | ----------------------------------------- |
+| Next.js web app         | Cloudflare Workers      | Auto on push:main (no per-PR previews yet)      | `.github/workflows/ci.yml` `deploy` job   |
+| Supabase migrations     | Supabase Postgres       | Auto on push:main when `supabase/migrations/**` | `.github/workflows/deploy-migrations.yml` |
+| Supabase edge functions | Supabase Edge Runtime   | Auto on push:main when `supabase/functions/**`  | `.github/workflows/deploy-functions.yml`  |
+| Supabase auth config    | Supabase Auth dashboard | Manual                                          | dashboard / Management API                |
 
-CI: two-job split in `.github/workflows/ci.yml`. **fast** (every push) — lint + typecheck + unit tests + build + gitleaks. **slow** (PR-to-main only, gated on fast) — brings up local Supabase stack, runs migrations + integration tests + Playwright × 2 viewports + edge-function deploy + type-drift + rollback EXPLAIN.
+CI: two-job split in `.github/workflows/ci.yml`. **fast** (every push) — lint + typecheck + unit tests + build + gitleaks. **slow** (PR-to-main only, gated on fast) — brings up local Supabase stack, runs migrations + integration tests + Playwright × 2 viewports (against the Worker build, in wrangler's local Workers runtime) + edge-function deploy + type-drift + rollback EXPLAIN. **deploy** (push:main only, `production` environment) — `scripts/deploy.sh`.
 
 ## Module map
 

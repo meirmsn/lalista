@@ -8,10 +8,10 @@
 #       it root:root 644 on every start so node (Claude / npm) cannot
 #       modify; only the operator with `sudo nano` can edit.
 # Does NOT: Replace the static template list in init-firewall.sh (which
-#       covers npm / GitHub / Anthropic / Sentry / Vercel / VS Code /
+#       covers npm / GitHub / Anthropic / Sentry / VS Code /
 #       common CDNs). Add ONLY project-specific external services here:
 #       your Supabase project URL, Sentry org ingest, PostHog region,
-#       Vercel app URL — anything that varies per project.
+#       production URL — anything that varies per project.
 #
 # Format:
 #   - One bare hostname per line (no scheme, no path, no port).
@@ -26,7 +26,7 @@
 #   o<org-id>.ingest.us.sentry.io               — your Sentry org ingest (or .eu.sentry.io)
 #   us.i.posthog.com                            — PostHog ingest (us or eu)
 #   us-assets.i.posthog.com                     — PostHog client assets (us or eu)
-#   <your-app>.vercel.app                       — your Vercel production URL
+#   lalista.<subdomain>.workers.dev             — the production Worker URL
 #
 # Pre-seeded (do NOT remove unless you replace next/font/google with another
 # font source). next/font/google fetches these at request time; without

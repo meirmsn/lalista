@@ -6,7 +6,7 @@
 
 One function today: `add-item`. The single orchestration call that takes a free-text utterance + household ID and returns either a row to optimistically insert or a disambiguation question for the client. Hides Claude API + pg_trgm matching + history-based store routing + brand-preference lookup behind a single endpoint.
 
-Functions auto-deploy to Supabase via `.github/workflows/deploy-functions.yml` on push:main when `supabase/functions/**` changes. The web app deploys to Vercel separately; **the two are not deployed atomically** — see `CLAUDE.md § Edge function changes need explicit deploy step` for the test-plan obligation.
+Functions auto-deploy to Supabase via `.github/workflows/deploy-functions.yml` on push:main when `supabase/functions/**` changes. The web app deploys to Cloudflare Workers separately (CI's `deploy` job); **the two are not deployed atomically** — see `CLAUDE.md § Edge function changes need explicit deploy step` for the test-plan obligation.
 
 ## Function list
 
@@ -59,7 +59,7 @@ The **force-create branch** (PR 5) inserts `items(name_canonical = utterance)` d
 
 ### External services
 
-- **Anthropic Claude API** — NLP normalization. Reads `Deno.env.get('ANTHROPIC_API_KEY')` at runtime. The QA/PROD split is handled at the surrounding surfaces (CI re-export, Vercel env, GH Secrets `ANTHROPIC_API_KEY_PROD` pushed by `deploy-functions.yml`); function code never sees the prefix. See `CLAUDE.md § Anthropic API key split` for the operator setup checklist.
+- **Anthropic Claude API** — NLP normalization. Reads `Deno.env.get('ANTHROPIC_API_KEY')` at runtime. The QA/PROD split is handled at the surrounding surfaces (CI re-export, GH `production` environment secret `ANTHROPIC_API_KEY_PROD` pushed by `deploy-functions.yml`); function code never sees the prefix. See `CLAUDE.md § Anthropic API key split` for the operator setup checklist.
 - **Postgres** (via REST) — pg_trgm match against `items.name_canonical`, history query against `purchase_history`, `disambiguation_log` write.
 
 ## Conventions

@@ -10,7 +10,7 @@ You're cooking for the kids and realize there's no mozzarella. The idea: press a
 
 ## Approach
 
-Built with Claude Code agents, following a spec-first loop I've been developing alongside it (devshop). Each change starts as a written spec with acceptance criteria, and the spec gets an adversarial review. Then the agent builds code, tests and docs together, captures Playwright screenshots as evidence, and opens a PR that CI must pass (in the private development repo; Actions are off in this public snapshot). I chose what to build, approved specs, reviewed PRs and used the app with my household. Human in the loop: @meirmsn. Robot hands: @meirmsn-agent, which packaged this public snapshot; during development the agent committed under my account.
+Built with Claude Code agents, following a spec-first loop I've been developing alongside it (devshop). Each change starts as a written spec with acceptance criteria, and the spec gets an adversarial review. Then the agent builds code, tests and docs together, captures Playwright screenshots as evidence, and opens a PR that CI must pass. I chose what to build, approved specs, reviewed PRs and used the app with my household. Human in the loop: @meirmsn. Robot hands: @meirmsn-agent, which packaged this public snapshot; during development the agent committed under my account.
 
 What the process taught: the first version was a native iOS app in Swift/SwiftUI that ran in the simulator, but the agent couldn't check its own work there. I shelved it for the web so the agent could verify every change itself in Playwright. Also, about half of the merged PRs went into the process and the dev environment rather than the product.
 
@@ -25,7 +25,7 @@ What the process taught: the first version was a native iOS app in Swift/SwiftUI
 
 ## How it works
 
-- Next.js web app on Vercel, with Supabase for Postgres, auth, realtime updates and an edge function. A Turborepo monorepo with shared `core` (API) and `ui` packages.
+- Next.js web app on Cloudflare Workers (built with OpenNext), with Supabase for Postgres, auth, realtime updates and an edge function. A Turborepo monorepo with shared `core` (API) and `ui` packages.
 - Adding an item runs one edge function. It fuzzy-matches the text against the item catalog with Postgres trigram similarity. If the text contains common Spanish words, Claude also translates it to English in parallel, and whichever match scores higher wins. Several close matches mean a "Which one?" question.
 - The store comes from a SQL function that ranks stores by the household's purchases over the last six months, weighting recent ones more. When one store holds at least 70% of that weighted history, the item is filed silently; otherwise the app asks. Purchase history is written only by "mark bought" (one atomic database call).
 - Households are isolated with Postgres row-level security. Key rules live in the database, not just the app: one household per account for now, and list items only for stores in the household's list.
@@ -59,7 +59,7 @@ What the process taught: the first version was a native iOS app in Swift/SwiftUI
 ## Run it
 
 - **Use it:** [lalista.store](https://lalista.store). Sign up with an email address.
-- **Locally:** needs Node 20, pnpm 10, Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli).
+- **Locally:** needs Node 22, pnpm 10, Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli).
   1. `pnpm install`
   2. `supabase start` (applies the migrations and the demo seed)
   3. In `apps/web/.env.local`, set `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the anon key printed by `supabase status`.

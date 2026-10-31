@@ -22,6 +22,9 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/**'
+  # By hand (Actions → Run workflow, on main) to fill a new or rebuilt project; the
+  # `production` environment refuses any other branch.
+  workflow_dispatch:
 
 # One-at-a-time. Two pushes-to-main back-to-back must serialize: parallel
 # `functions deploy` against the same project surfaces as deploy-state races.
@@ -33,6 +36,8 @@ jobs:
   deploy:
     name: Deploy all edge functions to linked Supabase project
     runs-on: ubuntu-latest
+    # Secrets and SUPABASE_PROD_URL live in the `production` environment (branch rule: main).
+    environment: production
     timeout-minutes: 5
     permissions:
       contents: read
@@ -42,7 +47,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.98.2 # the devcontainer's pin (.devcontainer/compose.yml)
 
       - name: Derive project ref from SUPABASE_PROD_URL
         id: project_ref

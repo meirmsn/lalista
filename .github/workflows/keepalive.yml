@@ -1,14 +1,32 @@
 name: Keepalive
+# Supabase pauses a free project after a week without database activity. A visit to the
+# site doesn't count (the public pages make no database query), so this queries the
+# production database through its REST API once a week, with the public anon key.
+# `stores` is readable by anon (migration 005 grants select); its RLS policy (016) returns
+# no rows without a session, so the answer is 200 with `[]` — still a database query.
 on:
   schedule:
     - cron: '0 9 * * 1' # Every Monday at 9am UTC
+  workflow_dispatch:
 jobs:
   ping:
     runs-on: ubuntu-latest
+    environment: production
     steps:
-      - name: Ping production
+      - name: Query the production database
+        env:
+          SUPABASE_PROD_URL: ${{ vars.SUPABASE_PROD_URL }}
+          SUPABASE_PROD_ANON_KEY: ${{ vars.SUPABASE_PROD_ANON_KEY }}
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_URL }}")
-          if [ "$STATUS" != "200" ]; then
-            echo "::warning::Production returned $STATUS"
+          if [ -z "$SUPABASE_PROD_URL" ] || [ -z "$SUPABASE_PROD_ANON_KEY" ]; then
+            echo "::error::SUPABASE_PROD_URL or SUPABASE_PROD_ANON_KEY is unset in the production environment"
+            exit 1
           fi
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $SUPABASE_PROD_ANON_KEY" \
+            "$SUPABASE_PROD_URL/rest/v1/stores?select=id&limit=1")
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Supabase answered $STATUS"
+            exit 1
+          fi
+          echo "Supabase answered 200"
