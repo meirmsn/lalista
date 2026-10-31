@@ -104,7 +104,8 @@ It reads, from the `production` environment:
 
 - secrets `CLOUDFLARE_API_TOKEN` (Workers Scripts Edit only) and, optionally,
   `SENTRY_AUTH_TOKEN` (source maps);
-- variables `CLOUDFLARE_ACCOUNT_ID`, `SUPABASE_PROD_URL`, `SUPABASE_PROD_ANON_KEY`, and
+- variables `CLOUDFLARE_ACCOUNT_ID` (a secret of that name also works; the variable wins),
+  `SUPABASE_PROD_URL`, `SUPABASE_PROD_ANON_KEY`, and
   optionally `SITE_URL` (the custom domain: invite links and the domain smoke check),
   `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_POSTHOG_KEY`, `SENTRY_ORG`.
 
