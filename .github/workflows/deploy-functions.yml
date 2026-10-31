@@ -47,7 +47,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.98.2 # the devcontainer's pin (.devcontainer/compose.yml)
 
       - name: Derive project ref from SUPABASE_PROD_URL
         id: project_ref

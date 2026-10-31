@@ -196,11 +196,13 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @lalista/web exec playwright install chromium webkit
 
-      # Supabase CLI + local stack. `setup-cli@v1` picks up the CLI version
-      # pinned in .devcontainer/devcontainer.json so CI + local stay in sync.
+      # Supabase CLI + local stack, at the version the devcontainer pins
+      # (SUPABASE_CLI_VERSION in .devcontainer/compose.yml), so CI and local
+      # stay in sync. `latest` broke the type-drift check when a newer CLI
+      # started writing `ComputedFields` into the generated types.
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.98.2
 
       - name: Start local Supabase
         run: |
