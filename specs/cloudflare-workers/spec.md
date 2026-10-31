@@ -46,24 +46,29 @@ it can without them.
 ## Acceptance items
 
 - **AC-1** `apps/web/wrangler.jsonc` names the Worker `lalista` and holds no account id, routes or
-  hosts. `pnpm --filter @lalista/web build:worker` builds the Worker.
+  hosts. `pnpm --filter @lalista/web build:worker` builds the Worker — verified by review: read
+  `apps/web/wrangler.jsonc`, and run `build:worker` then `wrangler deploy --dry-run`.
 - **AC-2** `scripts/deploy.sh`:
   - refuses (exit 2, nothing deployed) when a required production setting is unset or the config
     names another Worker;
   - records the live version before uploading, and stops if it can't read it;
   - after deploying, fails with the undo line unless `/build.txt` is the commit and `/` has a title.
 
-  Tested by `scripts/deploy.test.sh`.
+  Tested by `scripts/deploy.test.sh` (its cases are named AC-2).
 
 - **AC-3** CI's `deploy` job runs only on push to `main`, in the `production` environment, after
-  `fast`. `fast` runs `scripts/deploy.test.sh`.
+  `fast`. `fast` runs `scripts/deploy.test.sh` — verified by review: read the `deploy` job's `if`,
+  `needs` and `environment`, and the `fast` job's steps, in `.github/workflows/ci.yml`.
 - **AC-4** CI's `slow` job runs the Playwright suite against the Worker build
-  (`E2E_TARGET=worker`).
+  (`E2E_TARGET=worker`) — verified by review: read the `slow` job's build and Playwright steps in
+  `.github/workflows/ci.yml` and the `webServer` command in `apps/web/playwright.config.ts`.
 - **AC-5** `deploy-migrations.yml`, `deploy-functions.yml` and `keepalive.yml` run in the
   `production` environment, and keepalive queries the database. The two deploy workflows can
-  also be started by hand (`workflow_dispatch`).
+  also be started by hand (`workflow_dispatch`) — verified by review: read the `environment` line
+  of each workflow's job, the keepalive step, and the two deploy workflows' `on:` blocks.
 - **AC-6** No file outside `pnpm-lock.yaml`, `BUILD-LOG.md` and `specs/` mentions Vercel. There is
-  no `vercel.json` and no `vercel` dependency.
+  no `vercel.json` and no `vercel` dependency — verified by review:
+  `git grep -il vercel -- . ':!pnpm-lock.yaml' ':!BUILD-LOG.md' ':!specs/'` prints nothing.
 
 ## Out of scope
 
