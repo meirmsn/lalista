@@ -24,7 +24,8 @@ it can without them.
   fail `next/font/google` under Turbopack about one clean build in three ("queries have exactly
   one entry"); 16.4.2 built cleanly ten times in ten, as 16.2.4 did four in four. OpenNext 1.20.11
   throws on Next 16.4.1. Rejected: OpenNext 1.19 on Next 16.2.4, a May release line behind Next's
-  later security patches. 16.4.1 → 16.4.2 came after the go, when CI hit the font error.
+  later security patches. 16.4.1 → 16.4.2 came after the go, when CI hit the font error
+  ("yes", owner, 2026-10-31).
 - Node 20 → 22 in `.nvmrc`, CI and the devcontainer image, because wrangler 4.149 requires Node 22.
   The `supabase-runner` relay container stays on 20: it's a stdlib-only relay, apart from the app.
 - No R2 incremental cache, no image binding and no `global_fetch_strictly_public` flag. The app
