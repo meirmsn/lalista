@@ -1,0 +1,13 @@
+# Findings
+
+What Claude noticed while working on this repo and didn't fix, kept so the owner can watch what
+comes back. A finding is not a task: what the owner decided to do is in `ROADMAP.md`. The rules for
+rows are in the devshop's findings template.
+
+| ID  | Severity | What was noticed                                                                                                                                                                                                                                                                                | Seen                         |
+| --- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| F-1 | med      | `DESIGN.md` has no front matter, so v3's DESIGN.md shape check can't run and the fast tier skips it; the reviewer and the design review have no tokens to judge pages against. Converting it (tokens in light and dark, the theme CSS derived from it) is its own change (specs/devshop-v3.md). | 2026-11-05 · devshop v3 move |
+| F-2 | med      | `scripts/ui/render-check.mjs` is in the repo (the Cloudflare home requires it) but nothing runs it: the slow tier has no render check over the public pages (`/`, `/sign-in`, `/sign-up`, `/forgot-password`), and no `quality/routes.json`.                                                    | 2026-11-05 · devshop v3 move |
+| F-3 | low      | `TODOS.md`, `PLAN.md`, `BUILD-LOG.md` and `PRODUCT-ROADMAP.md` are v1-era records: open items there aren't in `ROADMAP.md` or here yet, and need the owner's triage.                                                                                                                            | 2026-11-05 · devshop v3 move |
+| F-4 | low      | Six files on `main` aren't Prettier-formatted (among them three `supabase/templates/*.html`). The fast tier checks only the files a change touches, so they pass until edited.                                                                                                                  | 2026-11-05 · devshop v3 move |
+| F-5 | low      | The README's "Use it: lalista.store" opens the old Vercel app: the domain still answers with `server: Vercel` until it is attached to the `lalista` Worker.                                                                                                                                     | 2026-11-05 · devshop v3 move |

@@ -1,6 +1,5 @@
 .env
-# Next.js local env overrides — per-workspace derivatives of .devcontainer/.env
-# See /devshop/.claude/skills/ak-new-project/SKILL.md § Step 13b
+# Next.js local env overrides
 .env.local
 .env.*.local
 

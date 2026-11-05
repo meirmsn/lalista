@@ -11,23 +11,23 @@ Developer notes for lalista, a bilingual grocery list web app (voice-first is th
 
 ## Development
 
-1. Open in VS Code and select **Reopen in Container**
-2. Run `claude` in the terminal
+Needs Node 22 (`.nvmrc`), pnpm 10, Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli) 2.98.2 (the version every workflow pins).
 
 ### Commands
 
+- `scripts/setup.sh` — install the workspace's packages (`pnpm install --frozen-lockfile`)
 - `pnpm turbo run test:unit` — fast test loop
-- `pnpm turbo run test` — full test suite
-- `pnpm db:start` — bring up the local Supabase stack (runs in the `supabase-runner` sibling compose container; relays through `pnpm db:reset` / `db:status` / `db:stop` / `db:gen-types`)
-- `pnpm test:integration` — Supabase-backed integration tests (requires the local stack from `pnpm db:start`)
-- `pnpm turbo run build` — production build
+- `pnpm db:start` / `pnpm db:stop` / `pnpm db:status` — the local Supabase stack (`supabase start` / `stop` / `status`)
+- `pnpm db:reset` — re-apply the migrations and the seed (`supabase db reset`)
+- `pnpm db:gen-types` — regenerate `packages/core/src/supabase.types.ts` from the local stack
+- `pnpm test:integration` — Supabase-backed integration tests (needs the local stack)
 - `pnpm turbo run dev` — dev server
+- `scripts/check-fast.sh origin/main` — the fast tier, as CI runs it; run it before pushing
+- `scripts/local-run.sh` — serve the Worker build on `127.0.0.1:$PORT` (build it first: `pnpm --filter @lalista/web build:worker`)
 
-> Without the devcontainer: `pnpm install && pnpm turbo run dev`
+### Local URLs
 
-### Local URLs (devcontainer)
-
-After `pnpm db:start` + `pnpm turbo run dev`, these are reachable from your macOS browser:
+After `pnpm db:start` + `pnpm turbo run dev`:
 
 - Dev server: http://localhost:3000
 - Supabase API gateway: http://127.0.0.1:54321
@@ -46,53 +46,37 @@ round-trips via `scripts/ci-rollback-explain.sh`.
 
 ## CI
 
-Three jobs, all defined in `.github/workflows/ci.yml`: `fast` and `slow` check every PR, and `deploy` ships `main`.
+`.github/workflows/ci.yml`, in the devshop's two tiers: `fast` and `slow` check every PR and every push to `main` (both are the required checks), and `deploy` ships `main` after both pass. What each tier checks lives in a script, so it runs the same locally.
 
-### `fast` — every push
+### `fast` — `scripts/check-fast.sh`
 
-Runs on every branch push. Blocks PR merge.
+- the PR title starts with a Conventional Commit type (`scripts/pr-title-check.py`)
+- the secret scan since the base (`scripts/secret-scan.sh`, gitleaks pinned in `ci.yml`)
+- the spec check over `specs/*.md`, each acceptance item named by a test (`scripts/spec-check.py`)
+- the project contract check (`scripts/contract-check.py`)
+- `scripts/lint.sh`: ESLint, typecheck, and Prettier on the changed files
+- `pnpm turbo run test:unit build`, `scripts/deploy.test.sh`, `scripts/repo-shape.test.sh`
 
-- `pnpm turbo run lint typecheck test:unit build`
-- `scripts/deploy.test.sh` (the deploy script, against a fake wrangler and curl)
-- Gitleaks scan of the push range
+It reads the GitHub Variables `SUPABASE_URL` + `SUPABASE_ANON_KEY` (the local stack's
+`http://127.0.0.1:54321` and its stock anon JWT, so a unit test that touches the client fails
+loudly instead of reaching production), `NEXT_PUBLIC_POSTHOG_KEY`, and the secrets `SENTRY_DSN`,
+`SENTRY_AUTH_TOKEN`.
 
-**Required GitHub Secrets:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
-`NEXT_PUBLIC_POSTHOG_KEY`, `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`. After PR 4,
-`SUPABASE_URL` + `SUPABASE_ANON_KEY` are rotated to `http://127.0.0.1:54321`
-and the stock Supabase local-stack anon JWT — unit tests that touch the
-client now fail loudly (`ECONNREFUSED`) rather than silently hitting prod.
+### `slow` — `scripts/check-slow.sh`
 
-### `slow` — PRs to main only
+Needs `fast`. The job's setup steps bring up a real Supabase stack in the runner (native Docker),
+check that its service-role key is the local default, and install Playwright's browsers; then the
+script runs:
 
-Gated on `fast` passing. Brings up a real Supabase stack in the GH-Actions
-runner (native Docker, no DinD) and runs:
+- `pnpm test:integration` (Vitest, `*.integration.test.ts`), with the locally served `add-item`
+  edge function calling Claude through `ANTHROPIC_API_KEY_QA` (re-exported as `ANTHROPIC_API_KEY`;
+  the production key never reaches CI's tiers)
+- `scripts/ci-type-drift.sh` and `scripts/ci-rollback-explain.sh`
+- the Worker build (`pnpm build:worker`), then Playwright at mobile and desktop against it in
+  `wrangler dev` (`E2E_TARGET=worker`), the runtime production uses
 
-- `supabase start` → `supabase db reset` (applies migrations + seed)
-- `supabase functions deploy add-item --no-verify-jwt` (local only)
-- `pnpm test:integration` (Vitest, `*.integration.test.ts` glob)
-- `scripts/ci-type-drift.sh` — regenerate `packages/core/src/supabase.types.ts`
-  against the local schema and fail on drift
-- `scripts/ci-rollback-explain.sh` — for each migration with a `-- ROLLBACK:`
-  block, EXPLAIN each statement against local Postgres + round-trip apply/revert
-- Next.js build + Playwright E2E at mobile (375) + desktop (1440)
-- Uploads `playwright-report/` + `test-results/` on failure
-
-**Required GitHub Secrets (beyond the fast job):** `SUPABASE_SERVICE_ROLE_KEY`
-(admin client for integration test setup/teardown), `ANTHROPIC_API_KEY_QA`
-(consumed by the locally-served add-item edge function for Claude NLP calls
-during integration tests — re-exported as `ANTHROPIC_API_KEY` inside the test
-step's env block; the prod key lives in `ANTHROPIC_API_KEY_PROD` and is pushed
-to Supabase project secrets by `deploy-functions.yml`). See `CLAUDE.md
-§ Anthropic API key split`.
-
-Three caches speed up repeated runs: pnpm store, Turborepo outputs, and
-Playwright browsers. Keys hash `pnpm-lock.yaml`.
-
-**Expected wall time:** ~6-8 min warm, ~10-12 min cold.
-
-The Playwright suite runs against the Cloudflare Worker build (`pnpm build:worker`, then
-`wrangler dev` via `E2E_TARGET=worker`), the runtime production uses. Locally,
-`pnpm --filter @lalista/web preview:worker` builds and serves the same Worker.
+It uploads `playwright-report/` + `test-results/` on failure. It takes about 30–45 minutes, and a
+merge's deploy waits for it.
 
 ### `deploy` — push to `main` only
 

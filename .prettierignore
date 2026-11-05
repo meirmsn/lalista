@@ -18,3 +18,14 @@ coverage
 
 # Config files that need exact formatting
 package-lock.json
+pnpm-lock.yaml
+
+# The devshop's copies (scripts/project-contract.txt marks them `devshop`): kept identical to
+# their source, so the formatter leaves them alone.
+scripts/secret-scan.sh
+scripts/spec-check.py
+scripts/deploy-comment.mjs
+scripts/pr-title-check.py
+scripts/contract-check.py
+scripts/project-contract.txt
+scripts/ui/

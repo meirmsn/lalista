@@ -32,7 +32,7 @@ supabase gen types typescript --local >"$TMP_RAW"
 # SEMANTIC drift (new/removed tables, columns, FKs, RPC signatures) and
 # not cosmetic differences between `supabase gen`'s raw output (double
 # quotes, no trailing semicolons) and the committed file (which the
-# pre-commit hook prettier-formats to the repo style).
+# db:gen-types script prettier-formats to the repo style).
 cd "$REPO_ROOT"
 # Pass --config explicitly: the tmp file lives in /tmp, so prettier's
 # auto-resolution (which searches up from the formatted file's dir) can
@@ -44,8 +44,8 @@ pnpm exec prettier --config "$REPO_ROOT/.prettierrc" --parser typescript "$TMP_R
 
 if ! diff -u "$CHECKED_IN" "$TMP_OUT"; then
   # Print the regenerated file verbatim so it can be recovered from CI
-  # logs when the local devcontainer can't run `supabase start` (DiD
-  # inert). Delimiters make log-extraction mechanical.
+  # logs when a session can't run `supabase start` (no Docker,
+  # say). Delimiters make log-extraction mechanical.
   echo ""
   echo "===CI_TYPE_DRIFT_REGENERATED_BEGIN==="
   cat "$TMP_OUT"

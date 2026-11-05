@@ -46,7 +46,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: 2.98.2 # the devcontainer's pin (.devcontainer/compose.yml)
+          version: 2.98.2 # same pin in every workflow; `latest` breaks the type-drift check (CLAUDE.md)
 
       - name: Link + push
         # SUPABASE_ACCESS_TOKEN: personal access token from
