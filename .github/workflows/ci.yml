@@ -90,8 +90,8 @@ jobs:
         run: scripts/check-fast.sh "$BASE"
 
   # The slow tier: a real Supabase stack inside the runner (Docker is native on GitHub's runners),
-  # seeded, with the add-item edge function served locally; then scripts/check-slow.sh. 45 minutes:
-  # setup takes about 14 (Playwright's system deps about 10), and the E2E suite runs one worker.
+  # seeded, with the add-item edge function served locally; then scripts/check-slow.sh. A run takes
+  # 7-8 minutes (PR #15); the 45-minute timeout is a ceiling kept from the v1 notes (specs/devshop-v3.md).
   slow:
     needs: fast
     runs-on: ubuntu-24.04

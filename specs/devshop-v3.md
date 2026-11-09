@@ -17,10 +17,12 @@ nothing needs goes. No change to what the app renders.
   lalista has none of (Claude's proposal, owner agreed 2026-11-05).
 - `slow` runs on every PR and on `main` with no job-level `if`, and `deploy` needs it: a skipped
   required check counts as passed. Cost accepted: a docs-only PR waits for `slow`, and a deploy
-  waits about 45 minutes after a merge; rejected: keeping the docs-only `changes` filter (owner,
+  waits for it after a merge (7–8 minutes on PR #15's runs; corrected 2026-11-09 from "about 45",
+  which came from v1 notes, not a measurement); rejected: keeping the docs-only `changes` filter (owner,
   2026-11-05).
-- `slow` keeps its 45-minute timeout, not the template's 30: the suite needs it (Claude, from the
-  adversarial review; owner agreed 2026-11-05).
+- `slow` keeps its 45-minute timeout, not the template's 30 (Claude, from the adversarial review;
+  owner agreed 2026-11-05). The reason given, that the suite needs it, was wrong: runs take 7–8
+  minutes. Whether to return to 30 is the owner's call (asked 2026-11-09).
 - Stack setup stays in `ci.yml` as the template's "stack tool installs" steps (pnpm, Node, the
   Supabase CLI and local stack with its health probe and key checks, Playwright browsers); what each
   tier checks moves into `scripts/check-fast.sh` and `scripts/check-slow.sh` (template).

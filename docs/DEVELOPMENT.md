@@ -75,8 +75,8 @@ script runs:
 - the Worker build (`pnpm build:worker`), then Playwright at mobile and desktop against it in
   `wrangler dev` (`E2E_TARGET=worker`), the runtime production uses
 
-It uploads `playwright-report/` + `test-results/` on failure. It takes about 30–45 minutes, and a
-merge's deploy waits for it.
+It uploads `playwright-report/` + `test-results/` on failure. It takes about 8 minutes, and a merge's
+deploy waits for it.
 
 ### `deploy` — push to `main` only
 
