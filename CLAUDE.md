@@ -3,7 +3,7 @@
 > **Orientation**: drill in on demand —
 >
 > - **Foundational** (what is this / how is it built): `OVERVIEW.md` (product), `ARCHITECTURE.md` (system). Per-package detail in `apps/web/README.md`, `packages/core/README.md`, `packages/ui/README.md`, `supabase/functions/README.md`.
-> - **Operational** (project-management state): `PLAN.md`, `BUILD-LOG.md`, `PRODUCT-ROADMAP.md` (v1-era records), `METRICS.md`, `FINDINGS.md` (what Claude noticed and didn't fix). `ROADMAP.md` (what the owner decided) starts with the owner's first entry.
+> - **Operational** (project-management state): `PLAN.md`, `BUILD-LOG.md`, `PRODUCT-ROADMAP.md` (v1-era records), `METRICS.md`, `ROADMAP.md` (what the owner decided will happen), `FINDINGS.md` (what Claude noticed and didn't fix).
 > - **Developer setup and CI**: `docs/DEVELOPMENT.md`.
 
 ## Project: lalista
