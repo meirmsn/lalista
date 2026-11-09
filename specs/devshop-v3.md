@@ -20,9 +20,9 @@ nothing needs goes. No change to what the app renders.
   waits for it after a merge (7–8 minutes on PR #15's runs; corrected 2026-11-09 from "about 45",
   which came from v1 notes, not a measurement); rejected: keeping the docs-only `changes` filter (owner,
   2026-11-05).
-- `slow` keeps its 45-minute timeout, not the template's 30 (Claude, from the adversarial review;
-  owner agreed 2026-11-05). The reason given, that the suite needs it, was wrong: runs take 7–8
-  minutes. Whether to return to 30 is the owner's call (asked 2026-11-09).
+- `slow` has the template's 30-minute timeout. Changed after the go: the go kept 45 because Claude
+  said the suite needed it (owner agreed 2026-11-05); runs take 7–8 minutes, and asked whether to
+  return to 30, the owner answered "yes" (owner, 2026-11-09).
 - Stack setup stays in `ci.yml` as the template's "stack tool installs" steps (pnpm, Node, the
   Supabase CLI and local stack with its health probe and key checks, Playwright browsers); what each
   tier checks moves into `scripts/check-fast.sh` and `scripts/check-slow.sh` (template).
@@ -46,7 +46,8 @@ nothing needs goes. No change to what the app renders.
   reaches the service-role key through a deployed function (owner, 2026-11-05).
 - `TODOS.md` is sorted and deleted. Its 5 product features (Sign in with Apple, renaming an item
   in the list, a "pick your stores" onboarding step, invitees naming themselves before the list,
-  correcting a wrong match) are questions for the owner, for `ROADMAP.md` or not, in their words;
+  correcting a wrong match) went to the owner, who answered "go to roadmap": `ROADMAP.md` R-1 to
+  R-5 (owner, 2026-11-09);
   its 3 bugs and 4 data and operations items become `FINDINGS.md` rows F-6 to F-12, each naming its
   old slug so the comments that cite it still lead somewhere; its CI item (skip `slow` on docs-only
   commits) is dropped, as v3 runs `slow` always; its native-iOS notes move to

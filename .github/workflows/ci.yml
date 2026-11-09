@@ -91,11 +91,11 @@ jobs:
 
   # The slow tier: a real Supabase stack inside the runner (Docker is native on GitHub's runners),
   # seeded, with the add-item edge function served locally; then scripts/check-slow.sh. A run takes
-  # 7-8 minutes (PR #15); the 45-minute timeout is a ceiling kept from the v1 notes (specs/devshop-v3.md).
+  # 7-8 minutes (PR #15), well inside the template's 30-minute timeout.
   slow:
     needs: fast
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
