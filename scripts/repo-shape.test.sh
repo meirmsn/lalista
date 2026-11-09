@@ -9,10 +9,10 @@ fail() { echo "FAIL: $*"; fails=1; }
 # devshop-v3 AC-3: nothing reads .devcontainer/, gitleaks is pinned with its checksum in ci.yml,
 # and every workflow that installs the Supabase CLI pins the same version.
 [ ! -e .devcontainer ] || fail ".devcontainer/ still exists"
-# The records (specs/, BUILD-LOG.md, PLAN.md, TODOS.md, PRODUCT-ROADMAP.md, ios-archive/) keep their
+# The records (specs/, BUILD-LOG.md, PLAN.md, PRODUCT-ROADMAP.md, ios-archive/) keep their
 # history; everything else is current and must not point at the deleted folder.
 skip=(--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=specs --exclude-dir=ios-archive
-  --exclude=BUILD-LOG.md --exclude=PLAN.md --exclude=TODOS.md --exclude=PRODUCT-ROADMAP.md
+  --exclude=BUILD-LOG.md --exclude=PLAN.md --exclude=PRODUCT-ROADMAP.md
   --exclude=repo-shape.test.sh)
 named=$(grep -rl '\.devcontainer/' "${skip[@]}" . 2>/dev/null | tr '\n' ' ')
 [ -z "$named" ] || fail "a current file still names .devcontainer/: $named"
@@ -52,6 +52,14 @@ done
 if grep -nE '/ak-|/devshop/kit|supabase-runner|devcontainer' CLAUDE.md; then
   fail "CLAUDE.md still names a v1 skill, path or relay (above)"
 fi
+
+# devshop-v3 AC-11: TODOS.md is sorted: gone, and each bug, data and operations item is a finding.
+[ ! -e TODOS.md ] || fail "TODOS.md still exists"
+for slug in disambig-sheet-auto-close-on-banner-symmetry loading-skeleton-a11y-single-status-region \
+  controlled-input-hydration-race per-household-items-catalog admin-promote-custom-store-to-global \
+  bootstrap-purchase-history-prod threshold-tuning-post-dogfood; do
+  grep -qE "^\| F-[0-9]+ .*\`$slug\`" FINDINGS.md || fail "FINDINGS.md has no row for $slug"
+done
 
 [ "$fails" = 0 ] && echo "repo-shape: ok"
 exit "$fails"

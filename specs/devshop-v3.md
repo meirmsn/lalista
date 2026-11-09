@@ -42,6 +42,14 @@ nothing needs goes. No change to what the app renders.
   their words. It starts with the owner's first entry (owner agreed 2026-11-05).
 - The Supabase token stays as it is (option A): every option keeps Edge Functions read-write, which
   reaches the service-role key through a deployed function (owner, 2026-11-05).
+- `TODOS.md` is sorted and deleted. Its 5 product features (Sign in with Apple, renaming an item
+  in the list, a "pick your stores" onboarding step, invitees naming themselves before the list,
+  correcting a wrong match) are questions for the owner, for `ROADMAP.md` or not, in their words;
+  its 3 bugs and 4 data and operations items become `FINDINGS.md` rows F-6 to F-12, each naming its
+  old slug so the comments that cite it still lead somewhere; its CI item (skip `slow` on docs-only
+  commits) is dropped, as v3 runs `slow` always; its native-iOS notes move to
+  `ios-archive/RESUME.md`. Changed after the go: the go had `TODOS.md` → `FINDINGS.md`; Claude asked
+  to sort by kind and the owner answered "yes" (owner, 2026-11-09).
 - `.github/CODEOWNERS` names the owner's GitHub handle, which the repo's URL already shows.
 - `@playwright/test` is pinned exact (`1.59.1`, the locked version), as the render check needs.
 
@@ -71,6 +79,8 @@ nothing needs goes. No change to what the app renders.
   `supplies` — verified by review: run on this branch.
 - **AC-10** `CLAUDE.md` has v3's "How changes land" and "Rules", keeps its Where-things-happen and
   Gotchas sections, and names no `/ak-*` skill, `/devshop/kit` path or `supabase-runner` relay.
+- **AC-11** `TODOS.md` is gone, and `FINDINGS.md` has a row naming each of its seven bug, data and
+  operations slugs.
 
 ## Out of scope
 
@@ -78,7 +88,7 @@ nothing needs goes. No change to what the app renders.
 - Running the render check in `slow`, and the Cloudflare home's quality bar (routes, budgets,
   Lighthouse).
 - Per-PR previews (`preview.yml`, the preview account and Supabase project).
-- Triaging `TODOS.md`, `PLAN.md`, `BUILD-LOG.md` and `PRODUCT-ROADMAP.md` into `ROADMAP.md` and
-  `FINDINGS.md`.
+- Triaging `PLAN.md`, `BUILD-LOG.md` and `PRODUCT-ROADMAP.md` into `ROADMAP.md` and
+  `FINDINGS.md`, and writing `ROADMAP.md` entries before the owner answers.
 - The Supabase token slim-down (option A chosen).
 - The owner's settings steps: the ruleset with `fast` and `slow` required, the squash title setting.

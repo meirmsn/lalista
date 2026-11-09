@@ -180,8 +180,7 @@ jobs:
         # crashed). Without this gate the failure surfaces mid-test as 502
         # responses from `invokeAddItem` ("Couldn't add. Check your connection"
         # toast), which makes core-flows / add-new / force-create-race / item-
-        # detail flake on edge-runtime startup, not on test logic. See
-        # TODOS.md § v0 § core-flows-happy-path-ci-investigation, option (a).
+        # detail flake on edge-runtime startup, not on test logic.
         #
         # Probe: POST FUNCTIONS_URL/add-item with empty body. The function
         # auth-checks first and returns 401 — any 4xx confirms the runtime
