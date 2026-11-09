@@ -53,12 +53,14 @@ if grep -nE '/ak-|/devshop/kit|supabase-runner|devcontainer' CLAUDE.md; then
   fail "CLAUDE.md still names a v1 skill, path or relay (above)"
 fi
 
-# devshop-v3 AC-11: TODOS.md is sorted: gone, and each bug, data and operations item is a finding.
+# devshop-v3 AC-11: TODOS.md is sorted: gone, and each bug, data and operations item is a finding
+# or a roadmap entry.
 [ ! -e TODOS.md ] || fail "TODOS.md still exists"
 for slug in disambig-sheet-auto-close-on-banner-symmetry loading-skeleton-a11y-single-status-region \
   controlled-input-hydration-race per-household-items-catalog admin-promote-custom-store-to-global \
   bootstrap-purchase-history-prod threshold-tuning-post-dogfood; do
-  grep -qE "^\| F-[0-9]+ .*\`$slug\`" FINDINGS.md || fail "FINDINGS.md has no row for $slug"
+  grep -qE "^\| F-[0-9]+ .*\`$slug\`" FINDINGS.md || grep -qF "\`$slug\`" ROADMAP.md \
+    || fail "neither FINDINGS.md nor ROADMAP.md names $slug"
 done
 
 [ "$fails" = 0 ] && echo "repo-shape: ok"

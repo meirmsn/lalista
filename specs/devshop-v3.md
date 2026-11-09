@@ -36,7 +36,8 @@ nothing needs goes. No change to what the app renders.
   the fast tier runs it in CI. Formatting moves from a pre-commit hook to `prettier --check` over
   the files a change touches, so files already unformatted on `main` don't fail every PR.
 - The DESIGN.md shape check is left out of the fast tier: `DESIGN.md` has no front matter. Logged
-  in `FINDINGS.md`; converting it is its own change (owner, 2026-11-05). `THEME_CSS` stays empty and
+  in `FINDINGS.md`; converting it is its own change (owner, 2026-11-05). Later moved to `ROADMAP.md`
+  R-7 with the render check, and F-9 to R-6, on the owner's "yees" (owner, 2026-11-09). `THEME_CSS` stays empty and
   the token check isn't added, as the Next.js home says for an existing app.
 - `scripts/ui/render-check.mjs` is placed (the Cloudflare home requires it) but not run yet: wiring
   it into `slow` over the public pages is its own change, logged in `FINDINGS.md`.
@@ -82,8 +83,9 @@ nothing needs goes. No change to what the app renders.
   `supplies` — verified by review: run on this branch.
 - **AC-10** `CLAUDE.md` has v3's "How changes land" and "Rules", keeps its Where-things-happen and
   Gotchas sections, and names no `/ak-*` skill, `/devshop/kit` path or `supabase-runner` relay.
-- **AC-11** `TODOS.md` is gone, and `FINDINGS.md` has a row naming each of its seven bug, data and
-  operations slugs.
+- **AC-11** `TODOS.md` is gone, and each of its seven bug, data and operations slugs is named by a
+  `FINDINGS.md` row or a `ROADMAP.md` entry. Changed after the go: F-9's slug moved to R-6 on the
+  owner's "yees" (owner, 2026-11-09).
 
 ## Out of scope
 
