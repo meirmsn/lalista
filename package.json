@@ -22,7 +22,7 @@
     "eslint-plugin-jsdoc": "^62.9.0",
     "prettier": "^3.8.3",
     "turbo": "^2.9.6",
-    "typescript": "^6.0.2",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.1"
   },
   "pnpm": {
