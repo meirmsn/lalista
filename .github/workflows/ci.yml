@@ -1,153 +1,110 @@
-name: CI
+# CI in two tiers (the devshop's template; copy to .github/workflows/ci.yml). Plain CI, no LLM jobs.
+#   fast: the PR title check (scripts/pr-title-check.py: a Conventional Commit type), then static
+#         checks and unit tests, scripts/check-fast.sh "$BASE" (secret scan, spec check with
+#         acceptance→test, the project contract check, lint where the project has it, unit tests);
+#         its template is runtime/templates/check-fast.sh.
+#   slow: end-to-end tests, scripts/check-slow.sh; runs only after fast passes.
+# What each tier runs lives in those two scripts, so this file stays the same for every stack. A
+# project with no slow tests yet keeps a check-slow.sh that says so and exits 0. Make `fast` and
+# `slow` the required checks on main. Never give either a job-level `if` or `continue-on-error`:
+# GitHub counts a skipped required job as passed. A deploy job needs both.
+# On main, the deploy and the merged PR's deploy comment (specs/deploy-and-metrics-comments.md in the
+# devshop): `announce` comments "Merged" when the run starts; `deploy`, after both tiers, comments
+# "Deploying", runs scripts/deploy.sh when the project has one, then "Live in production" or "failed";
+# `report`, after all of them, ends the comment in a final state whatever happened (checks failed,
+# cancelled, superseded by a newer merge). The comment is scripts/deploy-comment.mjs, the devshop's
+# copy, kept unchanged. The comment jobs and steps never fail or hold up the deploy.
+# Checked by the devshop's ci-tiers-check.py at session start.
+#
+# lalista: the stack's setup (pnpm, Node, the local Supabase stack, Playwright's browsers) is in the
+# "stack tool installs" steps below; what each tier checks is in scripts/check-fast.sh and
+# scripts/check-slow.sh (specs/devshop-v3.md). `slow` runs on every PR and on main, and the deploy
+# waits for it.
+name: ci
+
 on:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+env:
+  GITLEAKS_VERSION: 8.30.1
+  # sha256 of gitleaks_8.30.1_linux_x64.tar.gz, from the release's checksums file.
+  GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+
 jobs:
   fast:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # The fast tier builds the app. Its Supabase values are the local stack's (GitHub Variables,
+    # public); production's live only in the `production` environment, read by `deploy`.
+    env:
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # the secret scan and other checks read the commits since the base
+          persist-credentials: false
 
+      # --- Stack tool installs ---
       - uses: pnpm/action-setup@v3
-        # No `version:` — action-setup reads pnpm version from
-        # package.json#packageManager. Pinning to "latest" started
-        # grabbing pnpm 11 (needs Node 22.13+) on 2026-05-07 while we
-        # pinned Node 20, breaking every CI run; using packageManager keeps
-        # CI in lockstep with the devcontainer.
+        # No `version:`: action-setup reads pnpm's version from package.json#packageManager.
 
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
-
-      - name: gitleaks
-        run: |
-          # GITLEAKS_VERSION source-of-truth moved from devcontainer.json
-          # (JSON, quoted) to compose.yml (YAML, unquoted) when Option 3
-          # compose isolation shipped (lalista PR 34, 2026-04-28). The sed
-          # strips both the `KEY: ` prefix and any quoting / whitespace so
-          # this works regardless of the YAML quoting style.
-          GITLEAKS_VERSION=$(grep 'GITLEAKS_VERSION:' .devcontainer/compose.yml | head -1 | sed 's/.*: //;s/[" ]//g')
-          if [ -z "$GITLEAKS_VERSION" ]; then echo "ERROR: GITLEAKS_VERSION not found in .devcontainer/compose.yml"; exit 1; fi
-          wget -q "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -O /tmp/gitleaks.tar.gz
-          tar xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
-          /tmp/gitleaks detect --source . --redact --log-opts="${{ github.event.pull_request.base.sha || 'HEAD~1' }}..HEAD"
-
-      - run: pnpm turbo run lint typecheck test:unit build
-
-      - name: deploy.sh tests (fake wrangler and curl, no network)
-        run: bash scripts/deploy.test.sh
-
-    env:
-      # Post-security-posture-cleanup: SUPABASE_URL / SUPABASE_ANON_KEY /
-      # NEXT_PUBLIC_POSTHOG_KEY are GH Variables (public values):
-      #   SUPABASE_URL = http://127.0.0.1:54321 (local stack — fast-job doesn't
-      #     dial; the build step embeds it into the bundle but unit tests mock
-      #     network calls).
-      #   SUPABASE_ANON_KEY = published local-stack default JWT.
-      #   NEXT_PUBLIC_POSTHOG_KEY = public by NEXT_PUBLIC_* convention.
-      # Production's values live in the `production` environment, read only by
-      # the deploy job below.
-      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
-      NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
-      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-
-  # Skip-on-docs-only filter — classifies the PR diff and emits
-  # `runtime: 'true'/'false'` so the slow-job can skip on docs-only PRs.
-  # Job-level `paths-ignore:` is invalid YAML (actionlint v1.7.7 rejects
-  # `paths-ignore` outside of workflow triggers), and `paths-ignore:` at
-  # the workflow level would skip ALL jobs (including fast-job, which
-  # must stay required). Inline-bash classify keeps the dependency
-  # surface zero. Empty diff → runtime=true (safer fallback). See
-  # /devshop/kit/docs/guide/conventions.md § Slow-Job Lifecycle §
-  # Skip-on-docs-only filter for the full rationale (D1/D2/D6) and the
-  # branch-protection `skipped`-as-success contract.
-  changes:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    outputs:
-      runtime: ${{ steps.classify.outputs.runtime }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # required for `git diff base.sha...HEAD` (default depth-1 clone errors)
-      - id: classify
-        name: Classify diff (docs-only → runtime=false)
+      - name: Install gitleaks (pinned, checksum-verified)
         run: |
           set -euo pipefail
-          # Three-dot diff = merge-base diff (the changes the PR introduces).
-          # Two-dot would diff against base's current tip and pick up unrelated commits.
-          changed_files=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD" || true)
-          # Empty diff → runtime=true (safer default — run slow-job rather than silently skip).
-          if [ -z "$changed_files" ]; then
-            echo "Empty diff; defaulting runtime=true"
-            echo "runtime=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Patterns use `*.md` (not `**/*.md`) because bash `case` is pattern
-          # matching, not pathname expansion: inside `case` the `*` wildcard
-          # ALREADY matches `/`, so `*.md` covers both `CLAUDE.md` and
-          # `apps/web/README.md`. `shopt -s globstar` only affects globbing
-          # for filename expansion — it does NOT alter `case` semantics, so
-          # `**/*.md` in `case` behaves like `*/*.md` and fails to match
-          # root-level markdown (the regression that ran the slow-job on a
-          # CLAUDE.md-only PR — see #63, 2026-05-12). Do NOT "fix" this back
-          # to `**/*.md`.
-          runtime=false
-          while IFS= read -r path; do
-            [ -z "$path" ] && continue
-            case "$path" in
-              *.md) ;;
-              specs/**) ;;
-              PLAN.md) ;;
-              BUILD-LOG.md) ;;
-              TODOS.md) ;;
-              .gstack/**) ;;
-              .devshop/**) ;;
-              *)
-                runtime=true
-                break
-                ;;
-            esac
-          done <<< "$changed_files"
-          echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          # GitHub's release downloads answer 504 now and then (PR #15's first two runs): retry.
+          curl -fsSLo "$RUNNER_TEMP/$tarball" --retry 5 --retry-delay 5 --retry-all-errors \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$tarball"
+          echo "$GITLEAKS_SHA256  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP" gitleaks
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
-  # Slow job — runs only on PRs to main, after fast passes. Spins up a real
-  # Supabase stack inside the runner (Docker is native in GH-Actions; DiD is
-  # NOT used), seeds the DB, deploys the add-item edge function locally, then
-  # runs integration tests + Playwright E2E + migration-drift + rollback-SQL
-  # EXPLAIN checks. Expected wall time: ~6–8 min warm, ~10–12 min cold.
+      - name: Project setup
+        run: if [ -x scripts/setup.sh ]; then scripts/setup.sh; fi
+
+      # The PR's title, or on a push the head commit's first line (the squash merge makes it from the
+      # title), starts with a Conventional Commit type. Passed through env, never interpolated.
+      - name: PR title (a Conventional Commit type)
+        env:
+          TITLE: ${{ github.event.pull_request.title || github.event.head_commit.message }}
+        run: scripts/pr-title-check.py "$(head -n 1 <<<"$TITLE")"
+
+      - name: Fast tier (secret scan, spec check, contract check, lint, unit tests)
+        env:
+          # PR: everything since the base; push to main: everything since the previous tip.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: scripts/check-fast.sh "$BASE"
+
+  # The slow tier: a real Supabase stack inside the runner (Docker is native on GitHub's runners),
+  # seeded, with the add-item edge function served locally; then scripts/check-slow.sh. A run takes
+  # 7-8 minutes (PR #15), well inside the template's 30-minute timeout.
   slow:
-    if: github.event_name == 'pull_request' && needs.changes.outputs.runtime == 'true'
-    runs-on: ubuntu-latest
-    needs: [fast, changes]
-    # 45-min budget (bumped from 30 in PR 12 / my-stores): pre-Playwright
-    # setup eats ~14 min (Playwright system deps install ~10m + Supabase
-    # start ~2m + web build ~30s) leaving ~16 min for 76 tests under
-    # workers=1 — right at the cliff. Bumped to 45 so the 10 new my-stores
-    # tests fit without forcing workers=2 (which surfaces parallelism
-    # flakiness — see CLAUDE.md or PR 12 BUILD-LOG for the diagnostic).
-    timeout-minutes: 45
+    needs: fast
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
+      # --- Stack tool installs ---
       - uses: pnpm/action-setup@v3
-        # No `version:` — action-setup reads pnpm version from
-        # package.json#packageManager. Pinning to "latest" started
-        # grabbing pnpm 11 (needs Node 22.13+) on 2026-05-07 while we
-        # pinned Node 20, breaking every CI run; using packageManager keeps
-        # CI in lockstep with the devcontainer.
+        # No `version:`: action-setup reads pnpm's version from package.json#packageManager.
 
       - uses: actions/setup-node@v4
         with:
@@ -176,7 +133,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
 
-      - run: pnpm install --frozen-lockfile
+      - name: Project setup
+        run: if [ -x scripts/setup.sh ]; then scripts/setup.sh; fi
 
       - name: Install Playwright system deps (always)
         # System libraries (libwoff2dec, libgstreamer, etc.) live in /usr/lib via
@@ -196,10 +154,9 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @lalista/web exec playwright install chromium webkit
 
-      # Supabase CLI + local stack, at the version the devcontainer pins
-      # (SUPABASE_CLI_VERSION in .devcontainer/compose.yml), so CI and local
-      # stay in sync. `latest` broke the type-drift check when a newer CLI
-      # started writing `ComputedFields` into the generated types.
+      # Supabase CLI + local stack, at the same pin as every workflow. `latest`
+      # broke the type-drift check when a newer CLI started writing
+      # `ComputedFields` into the generated types.
       - uses: supabase/setup-cli@v1
         with:
           version: 2.98.2
@@ -224,8 +181,7 @@ jobs:
         # crashed). Without this gate the failure surfaces mid-test as 502
         # responses from `invokeAddItem` ("Couldn't add. Check your connection"
         # toast), which makes core-flows / add-new / force-create-race / item-
-        # detail flake on edge-runtime startup, not on test logic. See
-        # TODOS.md § v0 § core-flows-happy-path-ci-investigation, option (a).
+        # detail flake on edge-runtime startup, not on test logic.
         #
         # Probe: POST FUNCTIONS_URL/add-item with empty body. The function
         # auth-checks first and returns 401 — any 4xx confirms the runtime
@@ -330,50 +286,12 @@ jobs:
       # `supabase.auth.getUser()` internally so JWT validation is covered
       # regardless of edge-runtime `verify_jwt` configuration.
 
-      - name: Run integration tests (Vitest)
+      - name: Slow tier (integration tests, database checks, end-to-end tests)
         env:
-          CI_SLOW_JOB: '1'
-          VITEST_INTEGRATION: '1'
-          SUPABASE_URL: ${{ env.API_URL }}
-          SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
-          # Re-export ANTHROPIC_API_KEY_QA GH Secret as ANTHROPIC_API_KEY for the
-          # local edge-function runtime (Deno.env.get('ANTHROPIC_API_KEY') in
-          # supabase/functions/add-item/index.ts). ANTHROPIC_API_KEY_PROD MUST NOT
-          # be wired here — CI integration tests run against the local Supabase
-          # stack and should never burn prod billing or pollute prod rate limits.
-          # See CLAUDE.md § Anthropic API key split.
+          # The QA key, never production's: the local stack must not burn production billing.
+          # See CLAUDE.md § Env Var Naming.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_QA }}
-        run: pnpm test:integration
-
-      - name: Type drift check
-        run: bash scripts/ci-type-drift.sh
-
-      - name: Rollback SQL EXPLAIN check
-        run: bash scripts/ci-rollback-explain.sh
-
-      # The E2E suite runs against the Cloudflare Worker build (OpenNext), served by
-      # wrangler's local Workers runtime: the same runtime production runs on.
-      - name: Build web app as a Worker (for Playwright)
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
-        run: pnpm --filter @lalista/web build:worker
-
-      - name: Run Playwright E2E (mobile + desktop)
-        env:
-          CI: '1'
-          E2E_TARGET: worker
-          WRANGLER_SEND_METRICS: 'false'
-          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
-          SUPABASE_URL: ${{ env.API_URL }}
-          SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
-        run: |
-          pnpm --filter @lalista/web exec playwright test \
-            --project=mobile \
-            --project=desktop
+        run: scripts/check-slow.sh
 
       - name: Upload Playwright report on failure
         if: failure()
@@ -385,40 +303,94 @@ jobs:
             apps/web/test-results/
           retention-days: 7
 
-  # Production deploy: `main` only, after `fast` passed on this commit (`slow` runs on PRs
-  # only, so it is not a need here: a skipped need would skip the deploy). Everything the
-  # deploy reads lives in the `production` environment, whose deployment branch rule allows
-  # `main` alone. scripts/deploy.sh records the version it replaces and smoke-checks the new one.
+  # Comments "Merged" on the merged PR as soon as the run on main starts (its deploy comment).
+  announce:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write # the deploy comment
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+
+      - name: Tell the merged PR it merged
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/deploy-comment.mjs merged
+
+  # Production deploy: main only, after both tiers passed on this commit. The deploy itself is the
+  # project's scripts/deploy.sh (setup by scripts/setup.sh, as in the tiers); with none, nothing is
+  # deployed and the comment says "this project has no deploy step yet". scripts/deploy.sh writes, to
+  # $GITHUB_OUTPUT, what the comment reads:
+  #   url=<the live https URL>  version=<the new version>  previous_version=<the version it replaced>
+  #   rollback=<the line that undoes it>  deployed=yes (once the new version is uploaded; absent before)
+  #   site_url=<the site's own https origin>  site_smoke=passed|failed|skipped (its domain check)
+  # A project edits only the lines marked "---": its tool installs, and its deploy settings and secrets.
+  # Its secrets live in the `production` environment, whose deployment branch rule allows `main` alone.
+  # How to write deploy.sh for a stack is in that stack's home (runtime/stacks/ in the devshop).
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [fast]
-    runs-on: ubuntu-latest
+    needs: [fast, slow]
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
+      pull-requests: write # the deploy comment
     concurrency:
       group: production
       cancel-in-progress: false
     environment:
       name: production
       url: ${{ steps.deploy.outputs.url }}
+    outputs: # for `report`, when this job's own comment step couldn't write
+      url: ${{ steps.deploy.outputs.url }}
+      version: ${{ steps.deploy.outputs.version }}
+      previous_version: ${{ steps.deploy.outputs.previous_version }}
+      rollback: ${{ steps.deploy.outputs.rollback }}
+      site_url: ${{ steps.deploy.outputs.site_url }}
+      site_smoke: ${{ steps.deploy.outputs.site_smoke }}
+      none: ${{ steps.deploy.outputs.none }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
 
+      # The comment reports the deploy, it is not part of it: a comment GitHub refuses or a slow API
+      # shows as a failed step but never fails or holds up the deploy. No deploy secret in its env.
+      - name: Tell the merged PR it is deploying
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/deploy-comment.mjs deploying
+
       - uses: pnpm/action-setup@v3
+        # No `version:`: action-setup reads pnpm's version from package.json#packageManager.
 
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
+      - name: Project setup
+        run: if [ -x scripts/setup.sh ]; then scripts/setup.sh; fi
 
       - name: Deploy (scripts/deploy.sh)
         id: deploy
         env:
+          BUILD_SHA: ${{ github.sha }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_PROD_URL }}
@@ -429,6 +401,82 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SITE_URL: ${{ vars.SITE_URL }}
-          BUILD_SHA: ${{ github.sha }}
           WRANGLER_SEND_METRICS: 'false'
-        run: scripts/deploy.sh
+        run: |
+          if [ -x scripts/deploy.sh ]; then
+            scripts/deploy.sh
+          else
+            echo "No scripts/deploy.sh: nothing deployed."
+            echo "none=yes" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Tell the merged PR it is live
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          URL: ${{ steps.deploy.outputs.url }}
+          VERSION: ${{ steps.deploy.outputs.version }}
+          PREVIOUS: ${{ steps.deploy.outputs.previous_version }}
+          ROLLBACK: ${{ steps.deploy.outputs.rollback }}
+          SITE_URL: ${{ steps.deploy.outputs.site_url }}
+          SITE_SMOKE: ${{ steps.deploy.outputs.site_smoke }}
+          NONE: ${{ steps.deploy.outputs.none }}
+        run: node scripts/deploy-comment.mjs deployed
+
+      - name: Tell the merged PR the deploy failed
+        if: failure() || cancelled()
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PREVIOUS: ${{ steps.deploy.outputs.previous_version }}
+          ROLLBACK: ${{ steps.deploy.outputs.rollback }}
+          DEPLOYED: ${{ steps.deploy.outputs.deployed }}
+          SITE_URL: ${{ steps.deploy.outputs.site_url }}
+          SITE_SMOKE: ${{ steps.deploy.outputs.site_smoke }}
+        run: node scripts/deploy-comment.mjs failed
+
+  # Ends the deploy comment in a final state whatever happened: checks failed or cancelled on main, the
+  # deploy superseded by a newer merge's, cancelled, or this job's own comment write lost.
+  report:
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [fast, slow, deploy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write # the deploy comment
+      actions: read # to find a newer run on main
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+
+      - name: End the merged PR's deploy comment in a final state
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FAST: ${{ needs.fast.result }}
+          SLOW: ${{ needs.slow.result }}
+          DEPLOY: ${{ needs.deploy.result }}
+          URL: ${{ needs.deploy.outputs.url }}
+          VERSION: ${{ needs.deploy.outputs.version }}
+          PREVIOUS: ${{ needs.deploy.outputs.previous_version }}
+          ROLLBACK: ${{ needs.deploy.outputs.rollback }}
+          SITE_URL: ${{ needs.deploy.outputs.site_url }}
+          SITE_SMOKE: ${{ needs.deploy.outputs.site_smoke }}
+          NONE: ${{ needs.deploy.outputs.none }}
+        run: node scripts/deploy-comment.mjs report

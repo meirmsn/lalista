@@ -4,7 +4,7 @@
 -- the catalog so common adds are silent matches from day one.
 --
 -- NOTE: purchase_history (which drives store routing) is NOT seeded here because
--- it requires a real household_id + user_id. See TODOS.md → bootstrap-purchase-history-prod.
+-- it requires a real household_id + user_id. See FINDINGS.md F-11 (bootstrap-purchase-history-prod).
 
 -- ---------------------------------------------------------------------------
 -- Stores

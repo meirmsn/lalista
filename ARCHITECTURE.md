@@ -122,14 +122,14 @@ lalista is a Next.js 16 App Router web app on Cloudflare Workers (built with Ope
 
 ## External dependencies
 
-| Service                      | Role                                          | Credentials                                                                                      | Configured in                                               |
-| ---------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| Supabase Auth                | sign-up / sign-in / session JWT               | anon JWT (public), service-role (CI local-stack only — NEVER in prod CI)                         | `apps/web/.env.local`, GH `production` environment          |
-| Supabase Postgres + Realtime | data plane + WebSocket for cross-session sync | anon JWT for queries (RLS gates writes), DB password for migrations (operator-side, JIT)         | `apps/web/.env.local`, GH Variables                         |
-| Anthropic Claude API         | NLP normalization in `add-item` edge function | `ANTHROPIC_API_KEY_QA` (CI + local), `ANTHROPIC_API_KEY_PROD` (prod-only, console.anthropic.com) | GH Secrets, `.devcontainer/.env`, `supabase/functions/.env` |
-| Sentry                       | error capture + tracing                       | DSN (public), auth token (CI sourcemap upload)                                                   | `apps/web/sentry.*.config.ts`, `instrumentation.ts`         |
-| PostHog                      | product analytics                             | project key (public)                                                                             | `apps/web/app/providers.tsx`                                |
-| Cloudflare Workers           | hosts the Next.js app (OpenNext build)        | API token, Workers Scripts Edit only (CI deploy job)                                             | `apps/web/wrangler.jsonc`, GH `production` environment      |
+| Service                      | Role                                          | Credentials                                                                                      | Configured in                                          |
+| ---------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| Supabase Auth                | sign-up / sign-in / session JWT               | anon JWT (public), service-role (CI local-stack only — NEVER in prod CI)                         | `apps/web/.env.local`, GH `production` environment     |
+| Supabase Postgres + Realtime | data plane + WebSocket for cross-session sync | anon JWT for queries (RLS gates writes), DB password for migrations (operator-side, JIT)         | `apps/web/.env.local`, GH Variables                    |
+| Anthropic Claude API         | NLP normalization in `add-item` edge function | `ANTHROPIC_API_KEY_QA` (CI + local), `ANTHROPIC_API_KEY_PROD` (prod-only, console.anthropic.com) | GH Secrets, `supabase/functions/.env`                  |
+| Sentry                       | error capture + tracing                       | DSN (public), auth token (CI sourcemap upload)                                                   | `apps/web/sentry.*.config.ts`, `instrumentation.ts`    |
+| PostHog                      | product analytics                             | project key (public)                                                                             | `apps/web/app/providers.tsx`                           |
+| Cloudflare Workers           | hosts the Next.js app (OpenNext build)        | API token, Workers Scripts Edit only (CI deploy job)                                             | `apps/web/wrangler.jsonc`, GH `production` environment |
 
 ## Deployment topology
 
