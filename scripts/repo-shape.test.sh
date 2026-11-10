@@ -63,5 +63,12 @@ for slug in disambig-sheet-auto-close-on-banner-symmetry loading-skeleton-a11y-s
     || fail "neither FINDINGS.md nor ROADMAP.md names $slug"
 done
 
+# drop-local-run AC-1: no scripts/local-run.sh (the devshop's reviewer can't start it in lalista),
+# and no current doc names it.
+[ ! -e scripts/local-run.sh ] || fail "scripts/local-run.sh is back: the devshop's review can't run with it"
+if grep -rl 'scripts/local-run.sh' CLAUDE.md docs README.md >/dev/null 2>&1; then
+  fail "a current doc still names scripts/local-run.sh"
+fi
+
 [ "$fails" = 0 ] && echo "repo-shape: ok"
 exit "$fails"
