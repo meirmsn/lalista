@@ -41,7 +41,7 @@ export default defineConfig({
       },
     },
   ],
-  // E2E_TARGET=worker serves the OpenNext build (`pnpm build:worker` first) in wrangler's local
+  // E2E_TARGET=worker serves the OpenNext build (`scripts/build.sh` first) in wrangler's local
   // Workers runtime, the one production runs on; CI's slow job uses it. Otherwise `next dev`.
   webServer: {
     command:
