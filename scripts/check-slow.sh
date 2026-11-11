@@ -5,8 +5,8 @@
 # tests also need ANTHROPIC_API_KEY (CI gives it the QA key, never production's).
 #   - integration tests (Vitest, VITEST_INTEGRATION=1);
 #   - type drift (generated types match the migrations) and the rollback SQL EXPLAIN check;
-#   - the web app built as a Cloudflare Worker (OpenNext), then Playwright on both projects (mobile,
-#     desktop) against it in wrangler's local Workers runtime.
+#   - the web app built as a Cloudflare Worker (OpenNext, scripts/build.sh), then Playwright on both
+#     projects (mobile, desktop) against it in wrangler's local Workers runtime.
 # Every part runs even after one fails, except Playwright, which needs the build.
 # Exit 0 = clean; 1 = failures; 2 = couldn't run.
 set -uo pipefail
@@ -39,7 +39,7 @@ part() {
 part pnpm test:integration
 part bash scripts/ci-type-drift.sh
 part bash scripts/ci-rollback-explain.sh
-if part pnpm --filter @lalista/web build:worker; then
+if part bash scripts/build.sh; then
   part pnpm --filter @lalista/web exec playwright test --project=mobile --project=desktop
 else
   echo "Playwright skipped: the Worker build failed"

@@ -21,7 +21,7 @@
 - **UI/Labels:** Plus Jakarta Sans — same as body, weight 500–600 for labels and headers.
 - **Data/Tables:** Plus Jakarta Sans with `font-variant-numeric: tabular-nums` — keeps quantities and counts scannable in list rows.
 - **Code:** Not applicable for v0 (iOS app).
-- **Loading:** Google Fonts CDN for web preview/marketing. On iOS: system fallback (SF Pro) while custom fonts load; Fraunces used only for brand moments (wordmark, empty states) where loading delay is acceptable.
+- **Loading:** web: the font files are in the app (`apps/web/app/fonts/`, Latin subset, loaded with `next/font/local`), served from lalista's own domain; no Google Fonts request at build or run time. On iOS: system fallback (SF Pro) while custom fonts load; Fraunces used only for brand moments (wordmark, empty states) where loading delay is acceptable.
 - **Scale:**
   | Token | Size | Weight | Use |
   |-------|------|--------|-----|

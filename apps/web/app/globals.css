@@ -83,7 +83,7 @@
   --color-info: var(--color-info);
   --color-info-bg: var(--color-info-bg);
 
-  /* Fonts — Next.js next/font/google injects CSS variables onto <html>;
+  /* Fonts — next/font/local (app/layout.tsx) injects CSS variables onto <html>;
      we reference them with fallbacks so Tailwind utilities resolve even if
      the Next font loader is bypassed (tests, SSG edge cases). */
   --font-display: var(--font-lalista-display), Georgia, serif;
