@@ -8,6 +8,8 @@
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 2
 file=${1:-}
+# The devshop's hook passes a repo-relative path; an absolute one inside the repo is made relative.
+case $file in "$PWD"/*) file=${file#"$PWD"/} ;; esac
 [ -n "$file" ] || { echo "usage: scripts/lint-file.sh <path>"; exit 2; }
 [ -f "$file" ] || { echo "lint-file: not a file: $file"; exit 2; }
 command -v pnpm >/dev/null || { echo "lint-file: pnpm not found"; exit 2; }

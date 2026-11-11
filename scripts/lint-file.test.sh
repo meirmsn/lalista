@@ -42,6 +42,8 @@ expect 0 "Prettier-ignored devshop copy" scripts/project-contract.txt
 printf "// @ts-ignore\nexport const n: number = 1;\n" >"$web/eslint-error.ts"
 expect 1 "ESLint error" "$web/eslint-error.ts"
 grep -q 'ban-ts-comment' <<<"$out" || fail "ESLint error: the rule isn't printed: $out"
+expect 1 "ESLint error, absolute path" "$PWD/$web/eslint-error.ts"
+grep -q 'ban-ts-comment' <<<"$out" || fail "ESLint error, absolute path: the rule isn't printed: $out"
 
 # lint-file AC-3: a file Prettier would reformat, or can't parse, is a finding, printed.
 printf '{"a":1,\n"b":   2}\n' >"$root/unformatted.json"
