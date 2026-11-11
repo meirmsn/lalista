@@ -11,7 +11,14 @@ fail() { echo "FAIL: $*"; fails=1; }
 web=$(mktemp -d apps/web/lint-file-test.XXXXXX) || exit 2
 root=$(mktemp -d lint-file-test.XXXXXX) || exit 2
 bare=$(mktemp -d) || exit 2
-trap 'rm -r -- "$web" "$root" "$bare"' EXIT
+# apps/web/build/ is in apps/web's ESLint ignores, and only the root's /build/ is git-ignored.
+[ -d apps/web/build ] && made_build= || made_build=1
+mkdir -p apps/web/build && ignored=$(mktemp apps/web/build/lint-file-test.XXXXXX.ts) || exit 2
+cleanup() {
+  rm -r -- "$web" "$root" "$bare" "$ignored"
+  [ -z "$made_build" ] || rmdir apps/web/build
+}
+trap cleanup EXIT
 
 # expect <exit> <label> <args...>: runs lint-file.sh and checks its exit; the output is kept in $out.
 expect() {
@@ -27,7 +34,8 @@ printf "export const greeting = 'hola';\n" >"$web/clean.ts"
 printf '# Hola\n\nUna lista.\n' >"$root/clean.md"
 expect 0 "clean TS under apps/web" "$web/clean.ts"
 expect 0 "clean Markdown at the root" "$root/clean.md"
-expect 0 "ESLint-ignored file" apps/web/next-env.d.ts
+printf "// @ts-ignore\nexport const n: number = 1;\n" >"$ignored"
+expect 0 "ESLint-ignored file with an ESLint error" "$ignored"
 expect 0 "Prettier-ignored devshop copy" scripts/project-contract.txt
 
 # lint-file AC-2: an ESLint error is a finding, printed.
