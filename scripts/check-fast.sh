@@ -8,7 +8,8 @@
 #   - the project contract check (scripts/contract-check.py over scripts/project-contract.txt);
 #   - lint: scripts/lint.sh (ESLint, typecheck, Prettier on the changed files);
 #   - no DESIGN.md check yet: DESIGN.md has no front matter (ROADMAP.md R-7);
-#   - the stack's parts: unit tests and the build, the deploy script's tests, the repo-shape test.
+#   - the stack's parts: unit tests and the build, the deploy script's tests, the per-file lint's
+#     tests (scripts/lint-file.test.sh, specs/lint-file.md), the repo-shape test.
 # Usage: scripts/check-fast.sh [base-sha]
 # Every part runs even after one fails. Exit 0 = clean; 1 = failures; 2 = a part couldn't run.
 set -uo pipefail
@@ -45,5 +46,6 @@ echo "DESIGN.md check skipped: DESIGN.md has no front matter yet (ROADMAP.md R-7
 # --- Stack parts ---
 part pnpm turbo run test:unit build
 part bash scripts/deploy.test.sh
+part bash scripts/lint-file.test.sh
 part bash scripts/repo-shape.test.sh
 exit "$worst"

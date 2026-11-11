@@ -1,6 +1,6 @@
 # Lint each file as Claude edits it, and leave the other optional contract items out
 
-**Go:** pending
+**Go:** "Yeah, do whatever is the guidance from the dev shop, unless we are finding out that we are deviating from the dev shop due to some valid reason, and then we should do it and then report to the dev shop. But it doesn't seem like that's the case." (owner, 2026-11-11)
 
 ## Intent
 

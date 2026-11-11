@@ -56,7 +56,12 @@ round-trips via `scripts/ci-rollback-explain.sh`.
 - the spec check over `specs/*.md`, each acceptance item named by a test (`scripts/spec-check.py`)
 - the project contract check (`scripts/contract-check.py`)
 - `scripts/lint.sh`: ESLint, typecheck, and Prettier on the changed files
-- `pnpm turbo run test:unit build`, `scripts/deploy.test.sh`, `scripts/repo-shape.test.sh`
+- `pnpm turbo run test:unit build`, `scripts/deploy.test.sh`, `scripts/lint-file.test.sh`,
+  `scripts/repo-shape.test.sh`
+
+In a Claude session, the devshop's per-edit hook runs `scripts/lint-file.sh <file>` on each file
+Claude edits (ESLint under `apps/web/`, Prettier on any file) and hands findings back at once; the
+pre-push hook runs `scripts/lint.sh`. Both are feedback: CI is the check.
 
 It reads the GitHub Variables `SUPABASE_URL` + `SUPABASE_ANON_KEY` (the local stack's
 `http://127.0.0.1:54321` and its stock anon JWT, so a unit test that touches the client fails
