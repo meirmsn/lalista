@@ -63,5 +63,17 @@ for slug in disambig-sheet-auto-close-on-banner-symmetry loading-skeleton-a11y-s
     || fail "neither FINDINGS.md nor ROADMAP.md names $slug"
 done
 
+# dependabot-group-title AC-1: every Dependabot group's PR title passes the PR-title check, even at
+# 999 updates ("chore(deps): Bump the <group> group across 1 directory with 999 updates").
+for g in $(awk '/^    groups:/{f=1;next} f&&/^      [a-z0-9-]+:$/{sub(/:$/,"");print $1} f&&/^    [a-z]/{f=0}' .github/dependabot.yml); do
+  python3 scripts/pr-title-check.py "chore(deps): Bump the $g group across 1 directory with 999 updates" >/dev/null \
+    || fail "Dependabot group '$g' makes a PR title the title check rejects"
+done
+# dependabot-group-title AC-2: Dependabot leaves Playwright alone (it moves with the cloud
+# environment's Chromium).
+for d in playwright @playwright/test; do
+  grep -qE "dependency-name: '?$d'?$" .github/dependabot.yml || fail "dependabot.yml doesn't ignore $d"
+done
+
 [ "$fails" = 0 ] && echo "repo-shape: ok"
 exit "$fails"
