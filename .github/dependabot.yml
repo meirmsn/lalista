@@ -5,8 +5,17 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    # Playwright moves by hand, with the Chromium the cloud environment carries
+    # (/opt/pw-browsers): the devshop reviewer's browser loads the project's own
+    # Playwright and can't start on a version whose Chromium isn't installed
+    # (specs/dependabot-group-title.md).
+    ignore:
+      - dependency-name: 'playwright'
+      - dependency-name: '@playwright/test'
     groups:
-      minor-and-patch:
+      # A short name keeps the group PR's title ("chore(deps): Bump the minor group
+      # across 1 directory with N updates") within the PR-title check's 72 characters.
+      minor:
         update-types:
           - minor
           - patch
