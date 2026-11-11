@@ -23,7 +23,8 @@ Needs Node 22 (`.nvmrc`), pnpm 10, Docker and the [Supabase CLI](https://supabas
 - `pnpm test:integration` — Supabase-backed integration tests (needs the local stack)
 - `pnpm turbo run dev` — dev server
 - `scripts/check-fast.sh origin/main` — the fast tier, as CI runs it; run it before pushing
-- `scripts/local-run.sh` — serve the Worker build on `127.0.0.1:$PORT` (build it first: `pnpm --filter @lalista/web build:worker`)
+- `scripts/build.sh` — build the Worker (OpenNext) that `scripts/local-run.sh` serves
+- `scripts/local-run.sh` — serve that build on `127.0.0.1:$PORT` (run `scripts/build.sh` first)
 
 ### Local URLs
 
