@@ -65,7 +65,9 @@ done
 
 # dependabot-group-title AC-1: every Dependabot group's PR title passes the PR-title check, even at
 # 999 updates ("chore(deps): Bump the <group> group across 1 directory with 999 updates").
-for g in $(awk '/^    groups:/{f=1;next} f&&/^      [a-z0-9-]+:$/{sub(/:$/,"");print $1} f&&/^    [a-z]/{f=0}' .github/dependabot.yml); do
+groups=$(awk '/^    groups:/{f=1;next} f&&/^      [a-z0-9-]+:$/{sub(/:$/,"");print $1} f&&/^    [a-z]/{f=0}' .github/dependabot.yml)
+[ -n "$groups" ] || fail "no Dependabot group found in .github/dependabot.yml (the check reads nothing)"
+for g in $groups; do
   python3 scripts/pr-title-check.py "chore(deps): Bump the $g group across 1 directory with 999 updates" >/dev/null \
     || fail "Dependabot group '$g' makes a PR title the title check rejects"
 done
