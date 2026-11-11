@@ -69,6 +69,9 @@ runs once per PR head; parallel branches stop conflicting on shared lists.
   Vietnamese faces that load only for characters outside Latin; such characters now use the
   fallback (Georgia / system-ui). Rejected: committing those subsets too, for text lalista doesn't
   show (Claude, 2026-11-11).
+- The Content-Security-Policy in `apps/web/next.config.ts` drops `https://fonts.googleapis.com`
+  (`style-src`) and `https://fonts.gstatic.com` (`font-src`): nothing loads from Google any more
+  (the PR #17 reviewer's low finding; Claude, 2026-11-11).
 - The CSS variables (`--font-lalista-display`, `--font-lalista-body`) and `display: 'swap'` stay,
   so every style that uses the fonts is unchanged.
 - `FINDINGS.md` F-18, which this PR logs, is fixed by it and its row removed; `scripts/build.sh` loses its "known exception"

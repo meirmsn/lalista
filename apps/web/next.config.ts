@@ -36,8 +36,9 @@ const nextConfig: NextConfig = {
               // PostHog serves script config from us-assets.i.posthog.com — the
               // us.i.posthog.com host serves capture only, not the loader config.
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us-assets.i.posthog.com",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
+              "style-src 'self' 'unsafe-inline'",
+              // Fonts are the app's own files (app/fonts, next/font/local): no Google host.
+              "font-src 'self'",
               // connect-src: CSP treats schemes strictly — listing https://<supabase>
               // does NOT allow wss://<supabase>. Supabase Realtime requires the
               // ws/wss entry (strip http(s):// → ws(s)://). The replace handles
