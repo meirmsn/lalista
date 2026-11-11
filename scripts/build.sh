@@ -8,8 +8,6 @@
 # reviewer has no stack), it defaults to the local stack's URL and a placeholder key that can't
 # authenticate: the public pages render and the signed-in ones redirect to /sign-in, instead of
 # every page answering 500 ("URL and Key are required").
-# Known exception to "reaches no other host": next/font/google fetches the two fonts from Google at
-# build time (FINDINGS.md F-18).
 # BUILD_SHA (the commit being built) is accepted and not used: nothing in the app names its commit.
 set -euo pipefail
 cd "$(dirname "$0")/.."

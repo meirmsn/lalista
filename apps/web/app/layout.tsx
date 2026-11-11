@@ -3,24 +3,38 @@
 // Does NOT: Contain page-specific logic or feature components
 
 import type { Metadata, Viewport } from 'next';
-import { Fraunces, Plus_Jakarta_Sans } from 'next/font/google';
+import localFont from 'next/font/local';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Providers } from './providers';
 import './globals.css';
 
-const fraunces = Fraunces({
-  subsets: ['latin'],
+// The fonts are files in ./fonts (Latin subset, variable weight, SIL OFL 1.1: see the OFL-*.txt
+// beside them), the same files next/font/google used to download from Google at every build.
+// Local files keep the build off the network (scripts/build.sh "reaches no other host") and end
+// Turbopack's intermittent "next/font/google queries have exactly one entry" build failure.
+// The weights the app uses: Fraunces 300, 400, 600 (normal and italic); Plus Jakarta Sans 400-600.
+const fraunces = localFont({
+  src: [
+    {
+      path: './fonts/Fraunces-latin.woff2',
+      weight: '100 900',
+      style: 'normal',
+    },
+    {
+      path: './fonts/Fraunces-Italic-latin.woff2',
+      weight: '100 900',
+      style: 'italic',
+    },
+  ],
   variable: '--font-lalista-display',
   display: 'swap',
-  weight: ['300', '400', '600'],
-  style: ['normal', 'italic'],
 });
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
+const plusJakartaSans = localFont({
+  src: './fonts/PlusJakartaSans-latin.woff2',
+  weight: '200 800',
   variable: '--font-lalista-body',
   display: 'swap',
-  weight: ['400', '500', '600'],
 });
 
 export const metadata: Metadata = {
