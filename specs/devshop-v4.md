@@ -1,6 +1,6 @@
-# Move lalista to devshop v4.2
+# Move lalista to devshop v4.2, with the fonts served from the app
 
-**Go:** "Can you upgrade to DevShop 4.0?" … "Can you manage all of that? Answer anything that has to be done in there and get it done on a new session or multiple new sessions. Just go and open them. Don't come to me." (owner, 2026-11-10); on the reviewer's local run, "B" (fix the devshop, keep `scripts/local-run.sh`) and "done with devshop release! 4.2" (owner, 2026-11-10 and 2026-11-11)
+**Go:** "Can you upgrade to DevShop 4.0?" … "Can you manage all of that? Answer anything that has to be done in there and get it done on a new session or multiple new sessions. Just go and open them. Don't come to me." (owner, 2026-11-10); on the reviewer's local run, "B" (fix the devshop, keep `scripts/local-run.sh`) and "done with devshop release! 4.2" (owner, 2026-11-10 and 2026-11-11); on the fonts, "yes, do the local fonts PR first" (owner, 2026-11-11)
 
 ## Intent
 
@@ -52,10 +52,29 @@ runs once per PR head; parallel branches stop conflicting on shared lists.
   (`chromium_headless_shell-1217` missing). CI installs the browsers for whichever version is pinned.
   Rejected: a root 1.63.0 beside `apps/web`'s 1.59.1, two Playwrights in one lockfile (Claude,
   2026-11-11).
-- `scripts/build.sh` can't keep "reaches no other host": `next/font/google` fetches the two fonts
-  at build time. Recorded in the script and as `FINDINGS.md` F-18 (local fonts would fix it, and the
-  intermittent `next/font` build failure with it); rejected: moving to local fonts here, a change to
-  what the app ships (Claude, 2026-11-11).
+- **Local fonts, folded in after the go.** `next/font/google` downloaded Fraunces and Plus Jakarta
+  Sans from Google at every build: it broke `scripts/build.sh`'s "reaches no other host" and caused
+  Turbopack's intermittent "next/font/google queries have exactly one entry", which failed this PR's
+  `fast` job twice (and #10's once). The owner asked for that fix to go first, but the reviewer can
+  only check it with this PR's `scripts/build.sh`, so after the second failure it joined this PR
+  (owner, 2026-11-11: "yes, do the local fonts PR first"; Claude, 2026-11-11, on folding it in).
+  What users see doesn't change: next/font already served the fonts from lalista's own domain.
+- The files are the ones Google serves for the weights the app uses (Fraunces 300/400/600 normal
+  and italic, Plus Jakarta Sans 400/500/600): three variable WOFF2 files, Latin subset, fetched
+  from Google Fonts' CSS API on 2026-11-11, with each family's SIL Open Font License 1.1 text beside
+  them in `apps/web/app/fonts/`. The variable weight ranges (Fraunces 100–900, Plus Jakarta Sans
+  200–800) are declared as the files' `fvar` axes give them (Claude, 2026-11-11).
+- Only the Latin subset ships, as before: the old setup asked for `subsets: ['latin']`, and Latin
+  holds every Spanish letter (á, é, í, ó, ú, ñ, ü, ¿, ¡). The old build also emitted latin-ext and
+  Vietnamese faces that load only for characters outside Latin; such characters now use the
+  fallback (Georgia / system-ui). Rejected: committing those subsets too, for text lalista doesn't
+  show (Claude, 2026-11-11).
+- The CSS variables (`--font-lalista-display`, `--font-lalista-body`) and `display: 'swap'` stay,
+  so every style that uses the fonts is unchanged.
+- `FINDINGS.md` F-18, which this PR logs, is fixed by it and its row removed; `scripts/build.sh` loses its "known exception"
+  note; `CLAUDE.md`'s Next-version gotcha says the font error came from `next/font/google` and is
+  gone with local fonts; `DESIGN.md`'s loading line says the fonts are served from the app's
+  files.
 - The v4 lockfile check doesn't read `pnpm-lock.yaml`; logged as `FINDINGS.md` F-17 (Claude,
   2026-11-10).
 
@@ -77,7 +96,18 @@ runs once per PR head; parallel branches stop conflicting on shared lists.
 - **AC-5** `scripts/check-fast.sh origin/main` passes on this branch — verified by review: run on
   this branch, and `fast` green in CI.
 
+- **AC-6** `apps/web/app/layout.tsx` imports no `next/font/google`, and loads Fraunces (normal and
+  italic) and Plus Jakarta Sans with `next/font/local` from files in `apps/web/app/fonts/`, each
+  with its OFL text — verified by review: the diff, and `grep -rn next/font/google apps packages`
+  finds nothing.
+- **AC-7** The Worker build fetches nothing from Google: built three times from a clean `.next`
+  with fonts.googleapis.com and fonts.gstatic.com unreachable, each build passes and serves the
+  pages with the same font families — verified by review: the build log of the three runs.
+- **AC-8** The pages look the same: the landing and sign-in pages, light and dark, before and after
+  — verified by review: the screenshots in the PR.
+
 ## Out of scope
 
 - Rewriting `devshop:` or `/ak-*` names in the v1-era records.
-- Local fonts (F-18) and the devshop's pnpm lockfile check (F-17).
+- The devshop's pnpm lockfile check (F-17).
+- Any change to which fonts, weights or styles the app uses.
